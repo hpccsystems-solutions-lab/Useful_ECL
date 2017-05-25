@@ -3,8 +3,8 @@
  * platform version constants to determine if the platform's version is at
  * least as high as the argument.
  *
- * Note that this function will be evaluated at compile-time, not runtime.
- * This makes it useful for embedding in #IF() declarations:
+ * Note that this function will be evaluated at compile-time if the argument
+ * is a constant.  This makes it useful for embedding in #IF() declarations:
  *
  *      #IF(PlatformVersionCheck('6.2.0-1'))
  *          OUTPUT('Platform check TRUE');
