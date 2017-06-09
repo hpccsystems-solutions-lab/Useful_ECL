@@ -28,7 +28,9 @@ EXPORT ScalarArgType(value) := FUNCTIONMACRO
         #SET(outType, 'real')
     #ELSEIF(%'inType'%[..7] = 'decimal')
         #SET(outType, 'decimal')
+    #ELSE
+        #SET(outType, %'inType'%)
     #END
 
-    RETURN #IF(%'outType'% != '') %'outType'% #ELSE %'inType'% #END;
+    RETURN %'outType'%;
 ENDMACRO;
