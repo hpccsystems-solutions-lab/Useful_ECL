@@ -14,7 +14,8 @@ EXPORT ReadLocalFile(STRING fullPath) := FUNCTION
         (
             DYNAMIC(Std.File.ExternalLogicalFileName('127.0.0.1', fullPath)),
             {STRING s},
-            CSV(SEPARATOR(''))
+            CSV(SEPARATOR('')),
+            OPT
         );
 
     // Combine lines into a single string
