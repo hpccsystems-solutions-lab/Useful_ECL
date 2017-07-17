@@ -252,30 +252,30 @@ END;
 IMPORT Std;
 
 // Store a value with a 10-second timeout
-StringCache.SetValue('myKey', 'myValue', 10);
+Useful_ECL.StringCache.SetValue('myKey', 'myValue', 10);
 
 // Retrieve value immediately
-OUTPUT(StringCache.GetValue('myKey'), NAMED('ImmediateGetAfterSet'));
+OUTPUT(Useful_ECL.StringCache.GetValue('myKey'), NAMED('ImmediateGetAfterSet'));
 
 // Wait until value should expire
 Std.System.Debug.Sleep(15 * 1000);
 
 // Try retrieving it again
-OUTPUT(StringCache.GetValue('myKey'), NAMED('DelayedGetAfterExpire'));
+OUTPUT(Useful_ECL.StringCache.GetValue('myKey'), NAMED('DelayedGetAfterExpire'));
 
 // Wait until value should expire
 Std.System.Debug.Sleep(15 * 1000);
 
 // Try retrieving it again with a default value
-OUTPUT(StringCache.GetOrSetValue('myKey', 'myDefault', 10), NAMED('DelayedGetOrSetAfterExpire'));
+OUTPUT(Useful_ECL.StringCache.GetOrSetValue('myKey', 'myDefault', 10), NAMED('DelayedGetOrSetAfterExpire'));
 
 // Retrieve value immediately
-OUTPUT(StringCache.GetValue('myKey'), NAMED('ImmediateAfterGetOrSet'));
+OUTPUT(Useful_ECL.StringCache.GetValue('myKey'), NAMED('ImmediateAfterGetOrSet'));
 
 // Delete value
-OUTPUT(StringCache.DeleteValue('myKey'), NAMED('DeleteValue'));
+OUTPUT(Useful_ECL.StringCache.DeleteValue('myKey'), NAMED('DeleteValue'));
 
 // Retrieve value immediately
-OUTPUT(StringCache.GetValue('myKey'), NAMED('ImmediateAfterDelete'));
+OUTPUT(Useful_ECL.StringCache.GetValue('myKey'), NAMED('ImmediateAfterDelete'));
 
 ***************************************************************************/
