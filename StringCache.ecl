@@ -208,7 +208,7 @@ EXPORT StringCache := MODULE
         LOCAL %getResult% := Useful_ECL.StringCache.GetValue(key);
 
         #UNIQUENAME(finalResult);
-        LOCAL %finalResult% := IFF(%getResult% != '', %getResult%, Useful_ECL.StringCache.SetValue(key, defaultValue, expSeconds));
+        LOCAL %finalResult% := IF(%getResult% != '', %getResult%, Useful_ECL.StringCache.SetValue(key, defaultValue, expSeconds));
 
         RETURN %finalResult%;
     ENDMACRO;
