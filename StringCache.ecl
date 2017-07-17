@@ -19,21 +19,17 @@
  *  - GetOrSetValue()
  *  - DeleteValue()
  *
- * Note that GetOrSetValue() is a FUNCTIONMACRO and it calls other functions
- * within this module.  Those other functions are cited with a fully-qualified
- * module pathname (Useful_ECL.StringCache.xxxx()).  Those calls will need
- * to be changed if you port this module into another module.
- *
  * This code requires a c++11 compiler.
  */
 EXPORT StringCache := MODULE
 
+    //==========================================================================
+    // Internal Declarations
+    //==========================================================================
+
     // Admittedly odd way of instantiating an #OPTION within a module;
     // see usage of this attribute below
     SHARED USE_CPP_11 := #OPTION('compileOptions', '-std=c++11');
-
-    // The default number of seconds to cache new values
-    EXPORT DEFAULT_EXPIRE_SECONDS := 300;
 
     /**
      * INTERNAL
@@ -79,16 +75,16 @@ EXPORT StringCache := MODULE
         static std::mutex   gStringCacheMutex;
 
         // RAII class for mutex
-        class Lock
+        class StringCacheLock
         {
             public:
 
-                Lock()
+                StringCacheLock()
                 {
                     gStringCacheMutex.lock();
                 }
 
-                ~Lock()
+                ~StringCacheLock()
                 {
                     gStringCacheMutex.unlock();
                 }
@@ -103,7 +99,7 @@ EXPORT StringCache := MODULE
         if (lenValue > 0)
         {
             {
-                Lock    myLock;
+                StringCacheLock     myLock;
 
                 gStringCacheMap[key] = StringCacheInfo(value, time(NULL) + expire_seconds);
             }
@@ -113,20 +109,6 @@ EXPORT StringCache := MODULE
             memcpy(__result, value, __lenResult);
         }
     ENDEMBED;
-
-
-    /**
-     * Sets a value for a key in the cache.
-     *
-     * @param   key             The key to use to retrieve the value later;
-     *                          REQUIRED
-     * @param   value           The value to cache; REQUIRED
-     * @param   expire_seconds  The number of seconds to cache the value;
-     *                          OPTIONAL, defaults to DEFAULT_EXPIRE_SECONDS
-     *
-     * @return  The string value that was set.
-     */
-    EXPORT STRING SetValue(STRING key, STRING value, UNSIGNED2 expire_seconds = DEFAULT_EXPIRE_SECONDS) := WHEN(_SetValue(key, value, expire_seconds), USE_CPP_11);
 
     /**
      * INTERNAL
@@ -146,7 +128,7 @@ EXPORT StringCache := MODULE
         __lenResult = 0;
         __result = NULL;
 
-        Lock                myLock;
+        StringCacheLock     myLock;
         CacheMap::iterator  foundIter = gStringCacheMap.find(key);
 
         if (foundIter != gStringCacheMap.end())
@@ -163,6 +145,48 @@ EXPORT StringCache := MODULE
             }
         }
     ENDEMBED;
+
+    /**
+     * INTERNAL
+     *
+     * Deletes the value associated with given key if it exists.
+     *
+     * @see     DeleteValue
+     */
+    SHARED BOOLEAN _DeleteValue(STRING key) := EMBED(C++ : DISTRIBUTED)
+        #option action
+
+        StringCacheLock     myLock;
+        CacheMap::iterator  foundIter = gStringCacheMap.find(key);
+
+        if (foundIter != gStringCacheMap.end())
+        {
+            gStringCacheMap.erase(foundIter);
+            return true;
+        }
+
+        return false;
+    ENDEMBED;
+
+    //==========================================================================
+    // Exported Declarations
+    //==========================================================================
+
+    // The default number of seconds to cache new values
+    EXPORT DEFAULT_EXPIRE_SECONDS := 300;
+
+    /**
+     * Sets a value for a key in the cache.
+     *
+     * @param   key             The key to use to retrieve the value later;
+     *                          REQUIRED
+     * @param   value           The value to cache; REQUIRED
+     * @param   expire_seconds  The number of seconds to cache the value;
+     *                          OPTIONAL, defaults to DEFAULT_EXPIRE_SECONDS
+     *
+     * @return  The string value that was set.
+     */
+    EXPORT STRING SetValue(STRING key, STRING value, UNSIGNED2 expire_seconds = DEFAULT_EXPIRE_SECONDS) := WHEN(_SetValue(key, value, expire_seconds), USE_CPP_11);
 
     /**
      * Returns the value associated with given key.  If the value cannot
@@ -203,37 +227,12 @@ EXPORT StringCache := MODULE
      *          value if there is no associated string value or if the value is
      *          expired, or an empty string if no default value is provided.
      */
-    EXPORT GetOrSetValue(key, defaultValue = '\'\'', expSeconds = DEFAULT_EXPIRE_SECONDS) := FUNCTIONMACRO
-        #UNIQUENAME(getResult);
-        LOCAL %getResult% := Useful_ECL.StringCache.GetValue(key);
+    EXPORT GetOrSetValue(STRING key, STRING defaultValue = '', expSeconds = DEFAULT_EXPIRE_SECONDS) := FUNCTION
+        getResult := GetValue(key);
+        finalResult := IF(getResult != '', getResult, SetValue(key, defaultValue, expSeconds));
 
-        #UNIQUENAME(finalResult);
-        LOCAL %finalResult% := IF(%getResult% != '', %getResult%, Useful_ECL.StringCache.SetValue(key, defaultValue, expSeconds));
-
-        RETURN %finalResult%;
-    ENDMACRO;
-
-    /**
-     * INTERNAL
-     *
-     * Deletes the value associated with given key if it exists.
-     *
-     * @see     DeleteValue
-     */
-    SHARED BOOLEAN _DeleteValue(STRING key) := EMBED(C++ : DISTRIBUTED)
-        #option action
-
-        Lock                myLock;
-        CacheMap::iterator  foundIter = gStringCacheMap.find(key);
-
-        if (foundIter != gStringCacheMap.end())
-        {
-            gStringCacheMap.erase(foundIter);
-            return true;
-        }
-
-        return false;
-    ENDEMBED;
+        RETURN finalResult;
+    END;
 
     /**
      * Deletes the value associated with given key if it exists.
@@ -244,38 +243,3 @@ EXPORT StringCache := MODULE
      */
     EXPORT BOOLEAN DeleteValue(STRING key) := WHEN(_DeleteValue(key), USE_CPP_11);
 END;
-
-/***************************************************************************
-
-// Sample execution
-
-IMPORT Std;
-
-// Store a value with a 10-second timeout
-Useful_ECL.StringCache.SetValue('myKey', 'myValue', 10);
-
-// Retrieve value immediately
-OUTPUT(Useful_ECL.StringCache.GetValue('myKey'), NAMED('ImmediateGetAfterSet'));
-
-// Wait until value should expire
-Std.System.Debug.Sleep(15 * 1000);
-
-// Try retrieving it again
-OUTPUT(Useful_ECL.StringCache.GetValue('myKey'), NAMED('DelayedGetAfterExpire'));
-
-// Wait until value should expire
-Std.System.Debug.Sleep(15 * 1000);
-
-// Try retrieving it again with a default value
-OUTPUT(Useful_ECL.StringCache.GetOrSetValue('myKey', 'myDefault', 10), NAMED('DelayedGetOrSetAfterExpire'));
-
-// Retrieve value immediately
-OUTPUT(Useful_ECL.StringCache.GetValue('myKey'), NAMED('ImmediateAfterGetOrSet'));
-
-// Delete value
-OUTPUT(Useful_ECL.StringCache.DeleteValue('myKey'), NAMED('DeleteValue'));
-
-// Retrieve value immediately
-OUTPUT(Useful_ECL.StringCache.GetValue('myKey'), NAMED('ImmediateAfterDelete'));
-
-***************************************************************************/
