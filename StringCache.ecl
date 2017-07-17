@@ -19,6 +19,11 @@
  *  - GetOrSetValue()
  *  - DeleteValue()
  *
+ * Note that GetOrSetValue() is a FUNCTIONMACRO and it calls other functions
+ * within this module.  Those other functions are cited with a fully-qualified
+ * module pathname (Useful_ECL.StringCache.xxxx()).  Those calls will need
+ * to be changed if you port this module into another module.
+ *
  * This code requires a c++11 compiler.
  */
 EXPORT StringCache := MODULE
