@@ -24,6 +24,7 @@
 IMPORT Std;
 
 #OPTION('pickBestEngine', FALSE);
+#WORKUNIT('name', 'Show Installed Plugins');
 
 DIR := '/opt/HPCCSystems/plugins';
 
@@ -157,6 +158,8 @@ finalResult := PROJECT
                 SELF := LEFT
             )
     );
+
+OUTPUT((STRING)__ecl_version_major__ + '.' + (STRING)__ecl_version_minor__ + '.' + (STRING)__ecl_version_subminor__, NAMED('PlatformVersion'));
 
 OUTPUT(Std.Str.ToUpperCase(Std.System.Job.Platform()), NAMED('Engine'));
 
