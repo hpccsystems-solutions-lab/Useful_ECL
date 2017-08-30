@@ -80,8 +80,23 @@ ShowNumbers(Worker_IF worker, UNSIGNED4 cnt = 10) := FUNCTION
     RETURN worker.MakeNumbers(cnt);
 END;
 
+// Call our generic function twice, once with each worker
+OUTPUT(ShowNumbers(Worker_EvenNumbers, 5), NAMED('Even1'));
+OUTPUT(ShowNumbers(Worker_OddNumbers, 5), NAMED('Odd1'));
+
 //------------------------------------------------------------------------------
 
-// Call our generic function twice, once with each worker
-OUTPUT(ShowNumbers(Worker_EvenNumbers, 5), NAMED('Even'));
-OUTPUT(ShowNumbers(Worker_OddNumbers, 5), NAMED('Odd'));
+// You can group related custom code together by passing the custom bits
+// into a MODULE and then referencing the argument names within that module
+MyGenericModule(Worker_IF worker) := MODULE
+    EXPORT myData := worker.MakeNumbers(5);
+    EXPORT myDataCount := COUNT(myData);
+END;
+
+mEven := MyGenericModule(Worker_EvenNumbers);
+OUTPUT(mEven.myData, NAMED('Even2'));
+OUTPUT(mEven.myDataCount, NAMED('Even2Count'));
+
+mOdd := MyGenericModule(Worker_OddNumbers);
+OUTPUT(mOdd.myData, NAMED('Odd2'));
+OUTPUT(mOdd.myDataCount, NAMED('Odd2Count'));
