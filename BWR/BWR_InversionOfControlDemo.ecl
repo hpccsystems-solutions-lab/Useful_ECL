@@ -29,7 +29,7 @@ END;
 //------------------------------------------------------------------------------
 
 // Define the interface that our workers will implement
-Worker_IF := INTERFACE
+IWorker := INTERFACE
     // This is a function declaration, not an actual function
     EXPORT DATASET(NumberRec) MakeNumbers(UNSIGNED4 cnt);
 END;
@@ -38,7 +38,7 @@ END;
 
 // The worker that produces even numbers; note that it inherits from
 // the INTERFACE
-Worker_EvenNumbers := MODULE(Worker_IF)
+Worker_EvenNumbers := MODULE(IWorker)
     // Function must match the signature within the INTERFACE
     EXPORT DATASET(NumberRec) MakeNumbers(UNSIGNED4 cnt) := FUNCTION
         RETURN DATASET
@@ -55,7 +55,7 @@ END;
 
 // The worker that produces odd numbers; note that it inherits from
 // the INTERFACE
-Worker_OddNumbers := MODULE(Worker_IF)
+Worker_OddNumbers := MODULE(IWorker)
     // Function must match the signature within the INTERFACE
     EXPORT DATASET(NumberRec) MakeNumbers(UNSIGNED4 cnt) := FUNCTION
         RETURN DATASET
@@ -76,7 +76,7 @@ END;
 // the output from the worker code.  Note that the first argument's datatype
 // is the INTERFACE but you will be passing in the MODULE that adheres to that
 // INTERFACE.
-ShowNumbers(Worker_IF worker, UNSIGNED4 cnt = 10) := FUNCTION
+ShowNumbers(IWorker worker, UNSIGNED4 cnt = 10) := FUNCTION
     RETURN worker.MakeNumbers(cnt);
 END;
 
@@ -88,7 +88,7 @@ OUTPUT(ShowNumbers(Worker_OddNumbers, 5), NAMED('Odd1'));
 
 // You can group related custom code together by passing the custom bits
 // into a MODULE and then referencing the argument names within that module
-MyGenericModule(Worker_IF worker) := MODULE
+MyGenericModule(IWorker worker) := MODULE
     EXPORT myData := worker.MakeNumbers(5);
     EXPORT myDataCount := COUNT(myData);
 END;
