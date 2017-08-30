@@ -12,7 +12,7 @@
  *                              OPTIONAL; defaults to FALSE.
  * @param idAttr                The name of the unique ID attribute to add to
  *                              the dataset; this is a bare keyword, not a
- *                              string; OPTIONAL, defaults to 'uid'
+ *                              string; OPTIONAL, defaults to uid
  *
  * @return                      A new dataset with the appended unique identifer
  *                              field.
@@ -21,8 +21,9 @@
 EXPORT AppendUniqueID(inFile, startingID = 1, strictlySequential = FALSE, idAttr = 'uid') := FUNCTIONMACRO
     IMPORT Std;
 
-    // Definition of result layout
-    LOCAL ResultRec := RECORD
+    // Definition of %result% layout
+    #UNIQUENAME(ResultRec);
+    LOCAL %ResultRec% := RECORD
         UNSIGNED6   idAttr;
         RECORDOF(inFile);
     END;
@@ -31,12 +32,13 @@ EXPORT AppendUniqueID(inFile, startingID = 1, strictlySequential = FALSE, idAttr
     // Assign sequential values for only a few records
     //--------------------------------------------------------------------------
 
-    LOCAL seqFew := PROJECT
+    #UNIQUENAME(seqFew);
+    LOCAL %seqFew% := PROJECT
         (
             inFile,
             TRANSFORM
                 (
-                    ResultRec,
+                    %ResultRec%,
                     SELF.idAttr := startingID + COUNTER - 1,
                     SELF := LEFT
                 )
@@ -50,18 +52,20 @@ EXPORT AppendUniqueID(inFile, startingID = 1, strictlySequential = FALSE, idAttr
     #UNIQUENAME(nodeCount);
     #UNIQUENAME(nodeOffset);
 
-    LOCAL ResultRecWithNode := RECORD
-        ResultRec;
+    #UNIQUENAME(ResultRecWithNode);
+    LOCAL %ResultRecWithNode% := RECORD
+        %ResultRec%;
         UNSIGNED4   %nodeNum%;
     END;
 
     // Append zero-value RecID value and the Thor node number to each record
-    LOCAL inFileWithNodeNum := PROJECT
+    #UNIQUENAME(inFileWithNodeNum);
+    LOCAL %inFileWithNodeNum% := PROJECT
         (
             inFile,
             TRANSFORM
                 (
-                    ResultRecWithNode,
+                    %ResultRecWithNode%,
                     SELF.idAttr := 0,
                     SELF.%nodeNum% := Std.System.Thorlib.Node(),
                     SELF := LEFT
@@ -70,9 +74,10 @@ EXPORT AppendUniqueID(inFile, startingID = 1, strictlySequential = FALSE, idAttr
         );
 
     // Count the number of records on each node
-    LOCAL recCountsPerNode := TABLE
+    #UNIQUENAME(recCountsPerNode);
+    LOCAL %recCountsPerNode% := TABLE
         (
-            inFileWithNodeNum,
+            %inFileWithNodeNum%,
             {
                 UNSIGNED4   %nodeNum% := Std.System.Thorlib.Node(),
                 UNSIGNED6   %nodeCount% := COUNT(GROUP),
@@ -83,33 +88,36 @@ EXPORT AppendUniqueID(inFile, startingID = 1, strictlySequential = FALSE, idAttr
 
     // Compute the node offset, which is the minimum RecID value for any
     // record on that node
-    LOCAL nodeOffsets := ITERATE
+    #UNIQUENAME(nodeOffsets);
+    LOCAL %nodeOffsets% := ITERATE
         (
-            recCountsPerNode,
+            %recCountsPerNode%,
             TRANSFORM
                 (
-                    RECORDOF(recCountsPerNode),
+                    RECORDOF(%recCountsPerNode%),
                     SELF.%nodeOffset% := IF(COUNTER = 1, startingID, LEFT.%nodeOffset% + LEFT.%nodeCount%),
                     SELF:=RIGHT
                 )
         );
 
     // Append the node offset to the data
-    LOCAL inFileWithOffsets := JOIN
+    #UNIQUENAME(inFileWithOffsets);
+    LOCAL %inFileWithOffsets% := JOIN
         (
-            inFileWithNodeNum,
-            nodeOffsets,
+            %inFileWithNodeNum%,
+            %nodeOffsets%,
             LEFT.%nodeNum% = RIGHT.%nodeNum%,
             MANY LOOKUP
         );
 
     // Iterate through the records on each node, computing the RecID value
-    LOCAL inFileSequenced := ITERATE
+    #UNIQUENAME(inFileSequenced);
+    LOCAL %inFileSequenced% := ITERATE
         (
-            inFileWithOffsets,
+            %inFileWithOffsets%,
             TRANSFORM
                 (
-                    RECORDOF(inFileWithOffsets),
+                    RECORDOF(%inFileWithOffsets%),
                     SELF.idAttr := IF(LEFT.%nodeNum% = RIGHT.%nodeNum%, LEFT.idAttr + 1, RIGHT.%nodeOffset%),
                     SELF := RIGHT
                 ),
@@ -117,12 +125,13 @@ EXPORT AppendUniqueID(inFile, startingID = 1, strictlySequential = FALSE, idAttr
         );
 
     // Put the data in its final form
-    LOCAL seqMany := PROJECT
+    #UNIQUENAME(seqMany);
+    LOCAL %seqMany% := PROJECT
         (
-            inFileSequenced,
+            %inFileSequenced%,
             TRANSFORM
                 (
-                    ResultRec,
+                    %ResultRec%,
                     SELF := LEFT
                 ),
             LOCAL);
@@ -131,12 +140,13 @@ EXPORT AppendUniqueID(inFile, startingID = 1, strictlySequential = FALSE, idAttr
     // Assign unique values, not necessarily sequential
     //--------------------------------------------------------------------------
 
-    LOCAL uniq := PROJECT
+    #UNIQUENAME(uniq);
+    LOCAL %uniq% := PROJECT
         (
             inFile,
             TRANSFORM
                 (
-                    ResultRec,
+                    %ResultRec%,
                     SELF.idAttr := ((COUNTER - 1) * Std.System.Thorlib.Nodes()) + Std.System.Thorlib.Node() + startingID + COUNTER - 1,
                     SELF := LEFT
                 ),
@@ -148,12 +158,13 @@ EXPORT AppendUniqueID(inFile, startingID = 1, strictlySequential = FALSE, idAttr
     // of the RecID value and the size of the input
     //--------------------------------------------------------------------------
 
-    LOCAL result := MAP
+    #UNIQUENAME(result);
+    LOCAL %result% := MAP
         (
-            strictlySequential and COUNT(inFile) >= 1000000 =>  seqMany,
-            strictlySequential                              =>  seqFew,
-            uniq
+            strictlySequential and COUNT(inFile) >= 1000000 =>  %seqMany%,
+            strictlySequential                              =>  %seqFew%,
+            %uniq%
         );
 
-    RETURN result;
+    RETURN %result%;
 ENDMACRO;
