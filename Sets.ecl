@@ -1,38 +1,51 @@
 /**
  * ECL module containing functions for efficiently deduplicating values within
- * a SET OF [type] attribute.  The following [type] types are supported:
+ * a certain SET OF [type] attributes.  The ECL-only way of deduplicating set
+ * values is to do something like this:
  *
- *      -   INTEGER[n]
- *      -   UNSIGNED[n]
- *      -   REAL[n]
- *      -   STRING[n]
- *      -   VARSTRING
- *      -   UNICODE[n]
- *      -   VARUNICODE
- *      -   DATA[n]
+ *      myIntegerSet := [1,1,2,2,2,3,3];
+ *      myDedupedSet := SET(DEDUP(DATASET(myIntegerSet, {INTEGER1 n}), n, ALL), n);
+ *
+ * That is not very efficient, and can be quite painful if it is executed within
+ * a TRANSFORM iterating over millions of records.
+ *
+ * The following data types are supported:
+ *
+ *      SET OF INTEGER[n]
+ *      SET OF UNSIGNED[n]
+ *      SET OF REAL[n]
+ *      SET OF STRING[n]
+ *      SET OF VARSTRING
+ *      SET OF UNICODE[n]
+ *      SET OF VARUNICODE
+ *      SET OF DATA[n]
  *
  * This code directly supports INTEGER8, UNSIGNED8, REAL8 and DATA types.  All
  * other data types listed above will be implicitly cast to a directly
- * supported data type, and the result will be a directly supported datatype.
- * The ECL compiler should be able to take care of implicit casts of returned
- * values.
+ * supported data type, and the result will be that same directly supported
+ * datatype.  The ECL compiler should be able to take care of implicit casts of
+ * returned values.
  *
  * There are explicit deduplication functions defined.  You should choose the
  * most appropriate method for your datatype.  The functions are:
  *
- *      -   DedupInteger()
- *      -   DedupUnsigned()
- *      -   DedupReal()
- *      -   DedupData()
- *      -   DedupString()
- *      -   DedupUnicode()
+ *      DedupInteger()
+ *      DedupUnsigned()
+ *      DedupReal()
+ *      DedupData()
+ *      DedupString()
+ *      DedupUnicode()
  */
 EXPORT Sets := MODULE
 
     /**
-     * Deduplicates a SET OF INTEGER value.
+     * Deduplicates a SET OF INTEGER value.  This function will also work fine
+     * with SET OF UNSIGNED values if none of the values are greater than
+     * 2^63 - 1.
      *
      * @param   the_set     The set to deduplicate; may be any SET OF INTEGER[n]
+     *                      or SET OF UNSIGNED[n] where no value exceeds
+     *                      2^63 - 1.
      *
      * @return  SET OF INTEGER8 values, deduplicated
      */
