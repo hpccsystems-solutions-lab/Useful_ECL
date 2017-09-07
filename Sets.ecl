@@ -47,7 +47,8 @@ EXPORT Sets := MODULE
      *                      or SET OF UNSIGNED[n] where no value exceeds
      *                      2^63 - 1.
      *
-     * @return  SET OF INTEGER8 values, deduplicated
+     * @return  SET OF INTEGER8 values, deduplicated; the order of the retained
+     *          values is the same as in the input
      */
     EXPORT SET OF INTEGER8 DedupInteger(SET OF INTEGER8 the_set) := EMBED(C++ : DISTRIBUTED)
         #option pure
@@ -119,7 +120,8 @@ EXPORT Sets := MODULE
      *
      * @param   the_set     The set to deduplicate; may be any SET OF UNSIGNED[n]
      *
-     * @return  SET OF UNSIGNED8 values, deduplicated
+     * @return  SET OF UNSIGNED8 values, deduplicated; the order of the retained
+     *          values is the same as in the input
      */
     EXPORT SET OF UNSIGNED8 DedupUnsigned(SET OF UNSIGNED8 the_set) := EMBED(C++ : DISTRIBUTED)
         #option pure
@@ -191,7 +193,8 @@ EXPORT Sets := MODULE
      *
      * @param   the_set     The set to deduplicate; may be any SET OF REAL[n]
      *
-     * @return  SET OF REAL8 values, deduplicated
+     * @return  SET OF REAL8 values, deduplicated; the order of the retained
+     *          values is the same as in the input
      */
     EXPORT SET OF REAL8 DedupReal(SET OF REAL8 the_set) := EMBED(C++ : DISTRIBUTED)
         #option pure
@@ -264,7 +267,8 @@ EXPORT Sets := MODULE
      *
      * @param   the_set     The set to deduplicate; may be any SET OF DATA[n]
      *
-     * @return  SET OF DATA values, deduplicated
+     * @return  SET OF DATA values, deduplicated; the order of the retained
+     *          values is the same as in the input
      */
     EXPORT SET OF DATA DedupData(SET OF DATA the_set) := EMBED(C++ : DISTRIBUTED)
         #option pure
@@ -387,7 +391,8 @@ EXPORT Sets := MODULE
      * @param   the_set     The set to deduplicate; may be any SET OF STRING[n]
      *                      or SET OF VARSTRING
      *
-     * @return  SET OF STRING values, deduplicated
+     * @return  SET OF STRING values, deduplicated; the order of the retained
+     *          values is the same as in the input
      */
     EXPORT SET OF STRING DedupString(SET OF STRING the_set) := FUNCTION
         RETURN (SET OF STRING)DedupData((SET OF DATA)the_set);
@@ -401,7 +406,8 @@ EXPORT Sets := MODULE
      * @param   the_set     The set to deduplicate; may be any SET OF UNICODE[n]
      *                      or SET OF VARUNICODE
      *
-     * @return  SET OF UNICODE values, deduplicated
+     * @return  SET OF UNICODE values, deduplicated; the order of the retained
+     *          values is the same as in the input
      */
     EXPORT SET OF UNICODE DedupUnicode(SET OF UNICODE the_set) := FUNCTION
         RETURN (SET OF UNICODE)DedupData((SET OF DATA)the_set);
