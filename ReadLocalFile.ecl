@@ -27,8 +27,9 @@ EXPORT ReadLocalFile(STRING fullPath) := FUNCTION
                 (
                     RECORDOF(LEFT),
                     SELF.s := LEFT.s + RIGHT.s
-                )
+                ),
+            STABLE, ORDERED(TRUE)
         );
 
-    RETURN singleLine;
+    RETURN singleLine[1].s;
 END;
