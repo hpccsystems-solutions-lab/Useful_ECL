@@ -303,8 +303,8 @@ EVENT_NAME := 'RunTestProcess'; // Must match sender
 
 RunProcess() := FUNCTION
     DataRec := RECORD
-        STRING  a;
-        STRING  b;
+        STRING  a {XPATH('a')};
+        STRING  b {XPATH('b')};
     END;
 
     paramInfo := Useful_ECL.NotifyHelper.Decode.AsAnyDataset(DataRec);
