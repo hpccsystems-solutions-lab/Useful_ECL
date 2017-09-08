@@ -4,6 +4,10 @@
  * execution run) can be passed in; if it is provided then those mappings will
  * be reused.
  *
+ * The goal here is to create nominal integer values for every unique value
+ * of interest, and also to provide a way to update an old nominal map with
+ * new data.
+ *
  * This macro updates two attributes that you supply, one for the rewritten
  * input dataset and one that will contain the mapping.  The mapping will have
  * the structure:
