@@ -33,7 +33,7 @@
  *                                          from a previous execution; must have
  *                                          the record structure described above
  */
-EXPORT ConvertValuesToDictionary(inFile, attrListStr, outFile, outMap, oldMap = '') := MACRO
+EXPORT CreateNominalValues(inFile, attrListStr, outFile, outMap, oldMap = '') := MACRO
     LOADXML('<xml/>');
     #EXPORTXML(inFileFields, RECORDOF(inFile));
 
