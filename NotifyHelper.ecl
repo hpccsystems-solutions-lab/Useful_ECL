@@ -153,7 +153,9 @@ EXPORT NotifyHelper := MODULE
          * and creates a new dataset using the record definition provided.
          *
          * @param   datasetLayout   The RECORD definition describing the
-         *                          data.
+         *                          data; it is helpful to explicitly tag
+         *                          attributes within the definition with
+         *                          {XPATH()} options
          *
          * @return  A new dataset in datasetLayout format containing the
          *          passed data
