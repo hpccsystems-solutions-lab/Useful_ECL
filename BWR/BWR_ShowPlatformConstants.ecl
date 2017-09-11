@@ -1,3 +1,8 @@
+/**
+ * Shows the current value of some internal attributes that you can access
+ * from ECL.  Some of them are hard-coded (like the ECL version numbers) while
+ * others are determined when the HPCC platform starts up.
+ */
 OUTPUT(__ecl_legacy_mode__, NAMED('__ecl_legacy_mode__'));
 OUTPUT(__ecl_version__, NAMED('__ecl_version__'));
 OUTPUT(__ecl_version_major__, NAMED('__ecl_version_major__'));
