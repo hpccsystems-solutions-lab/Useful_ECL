@@ -97,10 +97,10 @@ EXPORT NotifyHelper := MODULE
             LOCAL %finalJSON% := '{"d": [' + %rolledUpJSON%[1].s + ']}';
 
             #UNIQUENAME(xmlEncodedValue);
-            %xmlEncodedValue% := '<JSON_DATA>' + %finalJSON% + '</JSON_DATA>';
+            LOCAL %xmlEncodedValue% := '<JSON_DATA>' + %finalJSON% + '</JSON_DATA>';
 
             #UNIQUENAME(result);
-            %result% := '<Event>' + %xmlEncodedValue% + '</Event>';
+            LOCAL %result% := '<Event>' + %xmlEncodedValue% + '</Event>';
 
             RETURN %result%;
         ENDMACRO;
@@ -165,12 +165,12 @@ EXPORT NotifyHelper := MODULE
             LOCAL %dataAsJSON% := EVENTEXTRA('JSON_DATA') : GLOBAL;
 
             #UNIQUENAME(TempLayout);
-            %TempLayout% := RECORD
+            LOCAL %TempLayout% := RECORD
                 DATASET(datasetLayout) d {XPATH('d')};
             END;
 
             #UNIQUENAME(parsedRow);
-            %parsedRow% := FROMJSON
+            LOCAL %parsedRow% := FROMJSON
                 (
                     %TempLayout%,
                     %dataAsJSON%,
@@ -178,7 +178,7 @@ EXPORT NotifyHelper := MODULE
                 );
 
             #UNIQUENAME(parsedParams);
-            %parsedParams% := NORMALIZE
+            LOCAL %parsedParams% := NORMALIZE
                 (
                     DATASET(%parsedRow%),
                     LEFT.d,
