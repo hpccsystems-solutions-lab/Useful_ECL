@@ -4,6 +4,7 @@
  * HPCC engine to ensure that a plugin is installed where it is needed.
  *
  * Three results are returned:
+ *  -   PlatformVersion:  The version of HPCC we are running on
  *  -   Engine:  The name of the HPCC engine (hthor, Thor, Roxie)
  *  -   IPAddress:  The IP address of the engine executing the workunit
  *      (inaccurate when run on a Thor cluster)
@@ -11,6 +12,9 @@
  *      node they were found on
  *  -   InstalledPluginsNodeCount:  For each plugin, the number of nodes that
  *      had that plugin installed
+ *  -   PluginsNotInstalledEverywhere:  Names of plugins that were installed
+ *      on only some nodes; this should be an empty result if everything
+ *      was installed correctly
  *
  * Reporting on Roxie is problematical.  The code will execute and report on
  * only one of the nodes, and you don't really know which one.  If Roxie is
@@ -26,7 +30,8 @@ IMPORT Std;
 #OPTION('pickBestEngine', FALSE);
 #WORKUNIT('name', 'Show Installed Plugins');
 
-DIR := '/opt/HPCCSystems/plugins';
+PLUGINS_DIR := '/opt/HPCCSystems/plugins';
+LIB_DIR := '/opt/HPCCSystems/lib';
 
 //------------------------------------------------------------------------------
 
@@ -96,8 +101,8 @@ nodesWithFileLists := PROJECT
         TRANSFORM
             (
                 RECORDOF(LEFT),
-                SELF.ecllibFileList := NOTHOR(Std.File.RemoteDirectory('127.0.0.1', DIR, '*.ecllib')),
-                SELF.sharedLibFileList := NOTHOR(Std.File.RemoteDirectory('127.0.0.1', DIR, '*.so')),
+                SELF.ecllibFileList := NOTHOR(Std.File.RemoteDirectory('127.0.0.1', PLUGINS_DIR, '*.ecllib')),
+                SELF.sharedLibFileList := DEDUP(NOTHOR(Std.File.RemoteDirectory('127.0.0.1', PLUGINS_DIR, '*.so')) + NOTHOR(Std.File.RemoteDirectory('127.0.0.1', LIB_DIR, '*.so')), ALL),
                 SELF := LEFT
             ),
         LOCAL
@@ -119,7 +124,7 @@ ecllibFileList := NORMALIZE
                 },
                 SELF.nodeNum := LEFT.nodeNum,
                 SELF.filename := RIGHT.name,
-                SELF.pluginName := PluginNameFromPath(DIR + '/' + SELF.filename),
+                SELF.pluginName := PluginNameFromPath(PLUGINS_DIR + '/' + SELF.filename),
                 SELF.sharedLibName := IF(SELF.pluginName != '', 'lib' + SELF.pluginName + '.so', '')
             )
     );
@@ -179,3 +184,5 @@ nodeCountByPlugin := TABLE
     );
 
 OUTPUT(SORT(nodeCountByPlugin, pluginName, FEW), NAMED('InstalledPluginsNodeCount'));
+
+OUTPUT(nodeCountByPlugin(nodeCount != Std.System.Thorlib.Nodes()), NAMED('PluginsNotInstalledEverywhere'));
