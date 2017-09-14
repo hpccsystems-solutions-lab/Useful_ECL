@@ -23,7 +23,11 @@
  *  -   APPENDIF:  Append a single value to a set, but only if the value does
  *      not already appear in the set.  The returned values appear in the same
  *      order in which they appear in the input and the appended value will
- *      always be last.
+ *      always be last.  This is equivalent to:
+ *
+ *          newSet := IF(newValue NOT IN oldSet, oldSet + newValue, oldSet);
+ *
+ *      but it is somewhat more efficient due to avoiding ECL's IF() statement.
  *
  * The ECL-only way of performing these kinds of operations is to convert the
  * sets to a dataset, perform the operation, then convert the result back to
