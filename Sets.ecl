@@ -1,18 +1,30 @@
 /**
- * A module containing functions for efficiently deduplicating values within
- * a SET OF [type] attributes and finding the deduplicated union or
- * intersection of values between two set attributes.
+ * This is a module containing functions for processing ECL SET OF [type]
+ * values.  It contains functions for the following:
  *
- * The ECL-only way of deduplicating set values is to do something like this:
+ *  -   DEDUPLICATE the values within a set:  The deduplicated values are
+ *      returned in the same order in which they appear in the input.
  *
- *      myIntegerSet := [1,1,2,2,2,3,3];
- *      myDedupedSet := SET(DEDUP(DATASET(myIntegerSet, {INTEGER1 n}), n, ALL), n);
+ *  -   Find the UNION of values between two sets:  Merge two sets together
+ *      deduplicate the values, and return the result as one set.  The returned
+ *      values appear in the same order in which they appear in the first set,
+ *      then the same order in which they appear in the second set.
  *
- * That is not very efficient, and can be quite painful if it is executed within
- * a TRANSFORM iterating over millions of records.  Finding the union or
- * intersection of set values would be similar, and even more painful (convert
- * to a dataset, then use a JOIN operation, then convert the result back to
- * a set).
+ *  -   Find the INTERSECTION of values between two sets:  Return the values
+ *      shared between two sets, deduplicated, as one set.  The returned
+ *      values appear in the same order in which they appear in the first set,
+ *      then the same order in which they appear in the second set.
+ *
+ *  -   Find the DIFFERENCE of values between two sets:  Return the values
+ *      that appear in only one set or the other (in other words, only those
+ *      values that are not shared), deduplicated, as one set.  The returned
+ *      values appear in the same order in which they appear in the first set,
+ *      then the same order in which they appear in the second set.
+ *
+ * The ECL-only way of performing these kinds of operations is to convert the
+ * sets to a dataset, perform the operation, then convert the result back to
+ * a set.  This is not very efficient and can be quite painful if executed
+ * within a TRANSFORM iterating over millions of records.
  *
  * The code here is has been designed to use as little memory as possible and
  * avoids copying any input set values unless they are part of the final result.
@@ -42,32 +54,38 @@
  *          IntegerDedup()
  *          IntegerUnion()
  *          IntegerIntersection()
+ *          IntegerDifference()
  *
  *      SET OF UNSIGNED[n]
  *          UnsignedDedup()
  *          UnsignedUnion()
  *          UnsignedIntersection()
+ *          UnsignedDifference()
  *
  *      SET OF REAL4 / SET OF REAL8 / SET OF REAL
  *          RealDedup()
  *          RealUnion()
  *          RealIntersection()
+ *          RealDifference()
  *
  *      SET OF DATA[n]
  *          DataDedup()
  *          DataUnion()
  *          DataIntersection()
+ *          DataDifference()
  *
  *      SET OF STRING[n] / SET OF VARSTRING[n]
  *          StringDedup()
  *          StringUnion()
  *          StringIntersection()
+ *          StringDifference()
  *
  *
  *      SET OF UNICODE[n] / SET OF VARUNICODE[n]
  *          UnicodeDedup()
  *          UnicodeUnion()
  *          UnicodeIntersection()
+ *          UnicodeDifference()
  *
  * There is test code located within a comment block at the end of this file.
  * The code exercises all of the methods here with a variety of input values.
@@ -90,6 +108,7 @@ EXPORT Sets := MODULE
 
     SHARED MERGE_TYPE_UNION := 1;
     SHARED MERGE_TYPE_INTERSECTION := 2;
+    SHARED MERGE_TYPE_DIFFERENCE := 3;
 
     SHARED InternalCode := MODULE
 
@@ -126,8 +145,9 @@ EXPORT Sets := MODULE
             unsigned long numElements1 = lenThe_set1 / sizeof(ELEMENT_TYPE);
             unsigned long numElements2 = lenThe_set2 / sizeof(ELEMENT_TYPE);
             unsigned long totalNumElements = numElements1 + numElements2;
+            bool allowOneSetEmpty = merge_type != 2;
 
-            if (totalNumElements > 0 && (merge_type == 1 || (numElements1 > 0 && numElements2 > 0)))
+            if (totalNumElements > 0 && (allowOneSetEmpty || (numElements1 > 0 && numElements2 > 0)))
             {
                 const ELEMENT_TYPE* source1 = static_cast<const ELEMENT_TYPE*>(the_set1);
                 const ELEMENT_TYPE* source2 = static_cast<const ELEMENT_TYPE*>(the_set2);
@@ -177,12 +197,11 @@ EXPORT Sets := MODULE
                 // At this point omitFromResult[false] indicates which elements are
                 // unique within their respective sets
 
-                unsigned long numElementsToCheck = 0;
+                unsigned long numElementsToCheck = totalNumElements;
 
                 if (merge_type == 1)
                 {
                     // Union of values
-                    numElementsToCheck = totalNumElements;
 
                     // Deduplicate the untagged values between the two sets
                     for (unsigned long x = 0; x < numElements1; x++)
@@ -227,6 +246,27 @@ EXPORT Sets := MODULE
                                 // so mark it in the first set so we don't pick
                                 // it up
                                 omitFromResult[x] = true;
+                            }
+                        }
+                    }
+                }
+                else if (merge_type == 3)
+                {
+                    // Difference of values
+
+                    // Find matching values between sets and, if found, tag both
+                    for (unsigned long x = 0; x < numElements1; x++)
+                    {
+                        if (omitFromResult[x] == false)
+                        {
+                            for (unsigned long y = 0; y < numElements2; y++)
+                            {
+                                if (omitFromResult[numElements1 + y] == false && source2[y] == source1[x])
+                                {
+                                    omitFromResult[x] = true;
+                                    omitFromResult[numElements1 + y] = true;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -311,8 +351,9 @@ EXPORT Sets := MODULE
             unsigned long numElements1 = lenThe_set1 / sizeof(ELEMENT_TYPE);
             unsigned long numElements2 = lenThe_set2 / sizeof(ELEMENT_TYPE);
             unsigned long totalNumElements = numElements1 + numElements2;
+            bool allowOneSetEmpty = merge_type != 2;
 
-            if (totalNumElements > 0 && (merge_type == 1 || (numElements1 > 0 && numElements2 > 0)))
+            if (totalNumElements > 0 && (allowOneSetEmpty || (numElements1 > 0 && numElements2 > 0)))
             {
                 const ELEMENT_TYPE* source1 = static_cast<const ELEMENT_TYPE*>(the_set1);
                 const ELEMENT_TYPE* source2 = static_cast<const ELEMENT_TYPE*>(the_set2);
@@ -362,12 +403,11 @@ EXPORT Sets := MODULE
                 // At this point omitFromResult[false] indicates which elements are
                 // unique within their respective sets
 
-                unsigned long numElementsToCheck = 0;
+                unsigned long numElementsToCheck = totalNumElements;
 
                 if (merge_type == 1)
                 {
                     // Union of values
-                    numElementsToCheck = totalNumElements;
 
                     // Deduplicate the untagged values between the two sets
                     for (unsigned long x = 0; x < numElements1; x++)
@@ -412,6 +452,27 @@ EXPORT Sets := MODULE
                                 // so mark it in the first set so we don't pick
                                 // it up
                                 omitFromResult[x] = true;
+                            }
+                        }
+                    }
+                }
+                else if (merge_type == 3)
+                {
+                    // Difference of values
+
+                    // Find matching values between sets and, if found, tag both
+                    for (unsigned long x = 0; x < numElements1; x++)
+                    {
+                        if (omitFromResult[x] == false)
+                        {
+                            for (unsigned long y = 0; y < numElements2; y++)
+                            {
+                                if (omitFromResult[numElements1 + y] == false && source2[y] == source1[x])
+                                {
+                                    omitFromResult[x] = true;
+                                    omitFromResult[numElements1 + y] = true;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -495,8 +556,9 @@ EXPORT Sets := MODULE
             unsigned long numElements1 = lenThe_set1 / sizeof(ELEMENT_TYPE);
             unsigned long numElements2 = lenThe_set2 / sizeof(ELEMENT_TYPE);
             unsigned long totalNumElements = numElements1 + numElements2;
+            bool allowOneSetEmpty = merge_type != 2;
 
-            if (totalNumElements > 0 && (merge_type == 1 || (numElements1 > 0 && numElements2 > 0)))
+            if (totalNumElements > 0 && (allowOneSetEmpty || (numElements1 > 0 && numElements2 > 0)))
             {
                 const ELEMENT_TYPE* source1 = static_cast<const ELEMENT_TYPE*>(the_set1);
                 const ELEMENT_TYPE* source2 = static_cast<const ELEMENT_TYPE*>(the_set2);
@@ -546,12 +608,11 @@ EXPORT Sets := MODULE
                 // At this point omitFromResult[false] indicates which elements are
                 // unique within their respective sets
 
-                unsigned long numElementsToCheck = 0;
+                unsigned long numElementsToCheck = totalNumElements;
 
                 if (merge_type == 1)
                 {
                     // Union of values
-                    numElementsToCheck = totalNumElements;
 
                     // Deduplicate the untagged values between the two sets
                     for (unsigned long x = 0; x < numElements1; x++)
@@ -596,6 +657,27 @@ EXPORT Sets := MODULE
                                 // so mark it in the first set so we don't pick
                                 // it up
                                 omitFromResult[x] = true;
+                            }
+                        }
+                    }
+                }
+                else if (merge_type == 3)
+                {
+                    // Difference of values
+
+                    // Find matching values between sets and, if found, tag both
+                    for (unsigned long x = 0; x < numElements1; x++)
+                    {
+                        if (omitFromResult[x] == false)
+                        {
+                            for (unsigned long y = 0; y < numElements2; y++)
+                            {
+                                if (omitFromResult[numElements1 + y] == false && source2[y] == source1[x])
+                                {
+                                    omitFromResult[x] = true;
+                                    omitFromResult[numElements1 + y] = true;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -741,8 +823,9 @@ EXPORT Sets := MODULE
             }
 
             totalNumElements = numElements1 + numElements2;
+            bool allowOneSetEmpty = merge_type != 2;
 
-            if (totalNumElements > 0 && (merge_type == 1 || (numElements1 > 0 && numElements2 > 0)))
+            if (totalNumElements > 0 && (allowOneSetEmpty || (numElements1 > 0 && numElements2 > 0)))
             {
                 bool omitFromResult[totalNumElements];
 
@@ -790,12 +873,11 @@ EXPORT Sets := MODULE
                 // At this point omitFromResult[false] indicates which elements are
                 // unique within their respective sets
 
-                unsigned long numElementsToCheck = 0;
+                unsigned long numElementsToCheck = totalNumElements;
 
                 if (merge_type == 1)
                 {
                     // Union of values
-                    numElementsToCheck = totalNumElements;
 
                     // Deduplicate the untagged values between the two sets
                     for (unsigned long x = 0; x < numElements1; x++)
@@ -815,7 +897,7 @@ EXPORT Sets := MODULE
                 }
                 else if (merge_type == 2)
                 {
-                    // Intersection of values
+                    // Intersection or difference of values
                     numElementsToCheck = numElements1;
 
                     // Find matching values between the two sets
@@ -840,6 +922,27 @@ EXPORT Sets := MODULE
                                 // so mark it in the first set so we don't pick
                                 // it up
                                 omitFromResult[x] = true;
+                            }
+                        }
+                    }
+                }
+                else if (merge_type == 3)
+                {
+                    // Difference of values
+
+                    // Find matching values between sets and, if found, tag both
+                    for (unsigned long x = 0; x < numElements1; x++)
+                    {
+                        if (omitFromResult[x] == false)
+                        {
+                            for (unsigned long y = 0; y < numElements2; y++)
+                            {
+                                if (omitFromResult[numElements1 + y] == false && sourceObjects2[y] == sourceObjects1[x])
+                                {
+                                    omitFromResult[x] = true;
+                                    omitFromResult[numElements1 + y] = true;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -970,6 +1073,27 @@ EXPORT Sets := MODULE
     END;
 
     /**
+     * Computes the difference of and deduplicates the values within two
+     * SET OF INTEGER attributes.   This function will also work fine with
+     * SET OF UNSIGNED attributes if none of the values are greater
+     * than 2^63 - 1.
+     *
+     * @param   the_set1    The set to process; may be any SET OF INTEGER[n]
+     *                      or SET OF UNSIGNED[n] where no value exceeds
+     *                      2^63 - 1; may be empty
+     * @param   the_set2    The set to process; may be any SET OF INTEGER[n]
+     *                      or SET OF UNSIGNED[n] where no value exceeds
+     *                      2^63 - 1; may be empty
+     *
+     * @return  A new SET OF INTEGER8 values, deduplicated; the order of the
+     *          retained values is the same as in the input (beginning with
+     *          first set and then with the second set)
+     */
+    EXPORT SET OF INTEGER8 IntegerDifference(SET OF INTEGER8 the_set1, SET OF INTEGER8 the_set2) := FUNCTION
+        RETURN InternalCode._MergeInteger(the_set1, the_set2, MERGE_TYPE_DIFFERENCE);
+    END;
+
+    /**
      * Deduplicates a SET OF UNSIGNED value.
      *
      * @param   the_set     The set to deduplicate; may be any SET OF UNSIGNED[n]
@@ -1013,6 +1137,23 @@ EXPORT Sets := MODULE
      */
     EXPORT SET OF UNSIGNED8 UnsignedIntersection(SET OF UNSIGNED8 the_set1, SET OF UNSIGNED8 the_set2) := FUNCTION
         RETURN InternalCode._MergeUnsigned(the_set1, the_set2, MERGE_TYPE_INTERSECTION);
+    END;
+
+    /**
+     * Computes the difference of and deduplicates the values within two
+     * SET OF UNSIGNED attributes.
+     *
+     * @param   the_set1    The set to process; may be any SET OF UNSIGNED[n];
+     *                      may be empty
+     * @param   the_set2    The set to process; may be any SET OF UNSIGNED[n];
+     *                      may be empty
+     *
+     * @return  A new SET OF UNSIGNED8 values, deduplicated; the order of the
+     *          retained values is the same as in the input (beginning with
+     *          first set and then with the second set)
+     */
+    EXPORT SET OF UNSIGNED8 UnsignedDifference(SET OF UNSIGNED8 the_set1, SET OF UNSIGNED8 the_set2) := FUNCTION
+        RETURN InternalCode._MergeUnsigned(the_set1, the_set2, MERGE_TYPE_DIFFERENCE);
     END;
 
     /**
@@ -1062,6 +1203,23 @@ EXPORT Sets := MODULE
     END;
 
     /**
+     * Computes the difference of and deduplicates the values within two
+     * SET OF REAL attributes.
+     *
+     * @param   the_set1    The set to process; may be any SET OF REAL[n];
+     *                      may be empty
+     * @param   the_set2    The set to process; may be any SET OF REAL[n];
+     *                      may be empty
+     *
+     * @return  A new SET OF REAL8 values, deduplicated; the order of the
+     *          retained values is the same as in the input (beginning with
+     *          first set and then with the second set)
+     */
+    EXPORT SET OF REAL8 RealDifference(SET OF REAL8 the_set1, SET OF REAL8 the_set2) := FUNCTION
+        RETURN InternalCode._MergeReal(the_set1, the_set2, MERGE_TYPE_DIFFERENCE);
+    END;
+
+    /**
      * Deduplicates a SET OF DATA value.  Duplicate values are determined by
      * bytewise comparison.
      *
@@ -1108,6 +1266,24 @@ EXPORT Sets := MODULE
      */
     EXPORT SET OF DATA DataIntersection(SET OF DATA the_set1, SET OF DATA the_set2) := FUNCTION
         RETURN InternalCode._MergeData(the_set1, the_set2, MERGE_TYPE_INTERSECTION);
+    END;
+
+    /**
+     * Computes the difference of and deduplicates the values within two
+     * SET OF DATA attributes.  Duplicate values are determined by bytewise
+     * comparison.
+     *
+     * @param   the_set1    The set to process; may be any SET OF DATA[n];
+     *                      may be empty
+     * @param   the_set2    The set to process; may be any SET OF DATA[n];
+     *                      may be empty
+     *
+     * @return  A new SET OF DATA values, deduplicated; the order of the
+     *          retained values is the same as in the input (beginning with
+     *          first set and then with the second set)
+     */
+    EXPORT SET OF DATA DataDifference(SET OF DATA the_set1, SET OF DATA the_set2) := FUNCTION
+        RETURN InternalCode._MergeData(the_set1, the_set2, MERGE_TYPE_DIFFERENCE);
     END;
 
     /**
@@ -1167,6 +1343,26 @@ EXPORT Sets := MODULE
     END;
 
     /**
+     * Computes the difference of and deduplicates the values within two
+     * SET OF STRING attributes.  Duplicate values are determined by bytewise
+     * comparison, so this is inherently a case-sensitive comparison.  Note
+     * that the strings are coerced to DATA types during conversion, then back
+     * to STRING for return.
+     *
+     * @param   the_set1    The set to process; may be any SET OF STRING[n];
+     *                      may be empty
+     * @param   the_set2    The set to process; may be any SET OF STRING[n];
+     *                      may be empty
+     *
+     * @return  A new SET OF STRING values, deduplicated; the order of the
+     *          retained values is the same as in the input (beginning with
+     *          first set and then with the second set)
+     */
+    EXPORT SET OF STRING StringDifference(SET OF STRING the_set1, SET OF STRING the_set2) := FUNCTION
+        RETURN (SET OF STRING)DataDifference((SET OF DATA)the_set1, (SET OF DATA)the_set2);
+    END;
+
+    /**
      * Deduplicates a SET OF UNICODE value.  Duplicate values are determined by
      * bytewise comparison.  Note that the unicode strings are coerced to DATA
      * types during conversion, then back to UNICODE for return.
@@ -1223,6 +1419,27 @@ EXPORT Sets := MODULE
         RETURN (SET OF UNICODE)DataIntersection((SET OF DATA)the_set1, (SET OF DATA)the_set2);
     END;
 
+    /**
+     * Computes the difference of and deduplicates the values within two
+     * SET OF UNICODE attributes.  Duplicate values are determined by bytewise
+     * comparison, so this is inherently a case-sensitive comparison.  Note
+     * that the strings are coerced to DATA types during conversion, then back
+     * to UNICODE for return.
+     *
+     * @param   the_set1    The set to process; may be any SET OF UNICODE[n]
+     *                      or SET OF VARUNICODE; may be empty
+     *                      may be empty
+     * @param   the_set2    The set to process; may be any SET OF UNICODE[n]
+     *                      or SET OF VARUNICODE; may be empty
+     *
+     * @return  A new SET OF UNICODE values, deduplicated; the order of the
+     *          retained values is the same as in the input (beginning with
+     *          first set and then with the second set)
+     */
+    EXPORT SET OF UNICODE UnicodeDifference(SET OF UNICODE the_set1, SET OF UNICODE the_set2) := FUNCTION
+        RETURN (SET OF UNICODE)DataDifference((SET OF DATA)the_set1, (SET OF DATA)the_set2);
+    END;
+
 END;
 
 /*******************************************************************************
@@ -1257,6 +1474,8 @@ ExecuteTest(set1, set2) := MACRO
     #SET(UnionFunction, %'BaseModule'% + '.' + %'baseType'% + 'Union');
     #DECLARE(IntersectionFunction);
     #SET(IntersectionFunction, %'BaseModule'% + '.' + %'baseType'% + 'Intersection');
+    #DECLARE(DifferenceFunction);
+    #SET(DifferenceFunction, %'BaseModule'% + '.' + %'baseType'% + 'Difference');
 
     OUTPUT(set1, NAMED(%'baseType'% + '_value_1'));
     OUTPUT(set2, NAMED(%'baseType'% + '_value_2'));
@@ -1270,12 +1489,16 @@ ExecuteTest(set1, set2) := MACRO
     OUTPUT(%IntersectionFunction%((%inType%)[], set2), NAMED(%'baseType'% + '_intersection_first_empty'));
     OUTPUT(%IntersectionFunction%(set1, (%inType%)[]), NAMED(%'baseType'% + '_intersection_second_empty'));
     OUTPUT(%IntersectionFunction%((%inType%)[], (%inType%)[]), NAMED(%'baseType'% + '_intersection_both_empty'));
+    OUTPUT(%DifferenceFunction%(set1, set2), NAMED(%'baseType'% + '_difference'));
+    OUTPUT(%DifferenceFunction%((%inType%)[], set2), NAMED(%'baseType'% + '_difference_first_empty'));
+    OUTPUT(%DifferenceFunction%(set1, (%inType%)[]), NAMED(%'baseType'% + '_difference_second_empty'));
+    OUTPUT(%DifferenceFunction%((%inType%)[], (%inType%)[]), NAMED(%'baseType'% + '_difference_both_empty'));
 ENDMACRO;
 
 ExecuteTest((SET OF UNSIGNED)[1,5,2,1,3,4,5], (SET OF UNSIGNED)[1,3,5,7,9]);
 ExecuteTest((SET OF INTEGER)[42,-99,2017,42,0,0,-98], (SET OF INTEGER)[-99,10,2016,10,0,100]);
 ExecuteTest((SET OF REAL)[-1.1,2.2,5.5,3.0,4.4,5.5,4], (SET OF REAL)[-9,3,1.1,-4.4,1.1,3.0]);
-ExecuteTest((SET OF STRING)['cpu','ram','display','ram','CPU'], (SET OF STRING)['keyboard','ram','DISPLAY']);
-ExecuteTest((SET OF UNICODE)[u'coffee',u'tea',u'milk',u'Tea',u'coffee'], (SET OF UNICODE)[u'coffe',u'Lemonade',u'soda',u'milk',u'juice',u'Soda']);
+ExecuteTest((SET OF STRING)['','cpu','ram','display','ram','CPU',''], (SET OF STRING)['keyboard','','ram','DISPLAY']);
+ExecuteTest((SET OF UNICODE)[u'coffee',u'tea',u'',u'milk',u'Tea',u'coffee',u''], (SET OF UNICODE)[u'coffe',u'Lemonade',u'soda',u'milk',u'juice',u'Soda']);
 
 *******************************************************************************/
