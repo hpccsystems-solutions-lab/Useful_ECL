@@ -15,11 +15,10 @@
  *      values appear in the same order in which they appear in the first set,
  *      then the same order in which they appear in the second set.
  *
- *  -   Find the DIFFERENCE of values between two sets:  Return the values
- *      that appear in only one set or the other (in other words, only those
- *      values that are not shared), deduplicated, as one set.  The returned
- *      values appear in the same order in which they appear in the first set,
- *      then the same order in which they appear in the second set.
+ *  -   Find the DIFFERENCE of values between two sets:  Return the
+ *      deduplicated values from the first set that do not appear in the second
+ *      set as one set.  The returned values appear in the same order in which
+ *      they appear in the first set.
  *
  * The ECL-only way of performing these kinds of operations is to convert the
  * sets to a dataset, perform the operation, then convert the result back to
@@ -253,8 +252,10 @@ EXPORT Sets := MODULE
                 else if (merge_type == 3)
                 {
                     // Difference of values
+                    numElementsToCheck = numElements1;
 
-                    // Find matching values between sets and, if found, tag both
+                    // Find matching values between sets and, if found, tag the
+                    // value in the first set
                     for (unsigned long x = 0; x < numElements1; x++)
                     {
                         if (omitFromResult[x] == false)
@@ -264,7 +265,6 @@ EXPORT Sets := MODULE
                                 if (omitFromResult[numElements1 + y] == false && source2[y] == source1[x])
                                 {
                                     omitFromResult[x] = true;
-                                    omitFromResult[numElements1 + y] = true;
                                     break;
                                 }
                             }
@@ -459,6 +459,7 @@ EXPORT Sets := MODULE
                 else if (merge_type == 3)
                 {
                     // Difference of values
+                    numElementsToCheck = numElements1;
 
                     // Find matching values between sets and, if found, tag both
                     for (unsigned long x = 0; x < numElements1; x++)
@@ -470,7 +471,6 @@ EXPORT Sets := MODULE
                                 if (omitFromResult[numElements1 + y] == false && source2[y] == source1[x])
                                 {
                                     omitFromResult[x] = true;
-                                    omitFromResult[numElements1 + y] = true;
                                     break;
                                 }
                             }
@@ -664,6 +664,7 @@ EXPORT Sets := MODULE
                 else if (merge_type == 3)
                 {
                     // Difference of values
+                    numElementsToCheck = numElements1;
 
                     // Find matching values between sets and, if found, tag both
                     for (unsigned long x = 0; x < numElements1; x++)
@@ -675,7 +676,6 @@ EXPORT Sets := MODULE
                                 if (omitFromResult[numElements1 + y] == false && source2[y] == source1[x])
                                 {
                                     omitFromResult[x] = true;
-                                    omitFromResult[numElements1 + y] = true;
                                     break;
                                 }
                             }
@@ -929,6 +929,7 @@ EXPORT Sets := MODULE
                 else if (merge_type == 3)
                 {
                     // Difference of values
+                    numElementsToCheck = numElements1;
 
                     // Find matching values between sets and, if found, tag both
                     for (unsigned long x = 0; x < numElements1; x++)
@@ -940,7 +941,6 @@ EXPORT Sets := MODULE
                                 if (omitFromResult[numElements1 + y] == false && sourceObjects2[y] == sourceObjects1[x])
                                 {
                                     omitFromResult[x] = true;
-                                    omitFromResult[numElements1 + y] = true;
                                     break;
                                 }
                             }
