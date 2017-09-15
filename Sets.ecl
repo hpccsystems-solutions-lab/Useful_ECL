@@ -20,19 +20,11 @@
  *      set as one set.  The returned values appear in the same order in which
  *      they appear in the first set.
  *
- *  -   APPENDIF:  Append a single value to a set, but only if the value does
- *      not already appear in the set.  The returned values appear in the same
- *      order in which they appear in the input and the appended value will
- *      always be last.  This is equivalent to:
- *
- *          newSet := IF(newValue NOT IN oldSet, oldSet + newValue, oldSet);
- *
- *      but it is somewhat more efficient due to avoiding ECL's IF() statement.
- *
  * The ECL-only way of performing these kinds of operations is to convert the
  * sets to a dataset, perform the operation, then convert the result back to
- * a set.  This is not very efficient and can be quite painful if executed
- * within a TRANSFORM iterating over millions of records.
+ * a set.  This is not very efficient, consumes quite a bit of memory, and can
+ * be quite painful if executed within a TRANSFORM iterating over millions
+ * of records.
  *
  * The code here is has been designed to use as little memory as possible and
  * avoids copying any input set values unless they are part of the final result.
@@ -63,35 +55,30 @@
  *          IntegerUnion()
  *          IntegerIntersection()
  *          IntegerDifference()
- *          IntegerAppendIf()
  *
  *      SET OF UNSIGNED[n]
  *          UnsignedDedup()
  *          UnsignedUnion()
  *          UnsignedIntersection()
  *          UnsignedDifference()
- *          UnsignedAppendIf()
  *
  *      SET OF REAL4 / SET OF REAL8 / SET OF REAL
  *          RealDedup()
  *          RealUnion()
  *          RealIntersection()
  *          RealDifference()
- *          RealAppendIf()
  *
  *      SET OF DATA[n]
  *          DataDedup()
  *          DataUnion()
  *          DataIntersection()
  *          DataDifference()
- *          DataAppendIf()
  *
  *      SET OF STRING[n] / SET OF VARSTRING[n]
  *          StringDedup()
  *          StringUnion()
  *          StringIntersection()
  *          StringDifference()
- *          StringAppendIf()
  *
  *
  *      SET OF UNICODE[n] / SET OF VARUNICODE[n]
@@ -99,7 +86,6 @@
  *          UnicodeUnion()
  *          UnicodeIntersection()
  *          UnicodeDifference()
- *          UnicodeAppendIf()
  *
  * There is test code located within a comment block at the end of this file.
  * The code exercises all of the methods here with a variety of input values.
@@ -1031,264 +1017,6 @@ EXPORT Sets := MODULE
             }
         ENDEMBED;
 
-        /**
-         * Appends a new value to an existing set only if the value does not
-         * already appear in the set.
-         *
-         * @param   the_set     The set to process; may be any SET OF INTEGER[n]
-         *                      or SET OF UNSIGNED[n] where no value exceeds
-         *                      2^63 - 1; may be empty
-         * @param   new_value   The value to append if it is not already a
-         *                      member of the_set
-         *
-         * @return  A new SET OF INTEGER8 value
-         */
-        EXPORT SET OF INTEGER8 _AppendIfInteger(SET OF INTEGER8 the_set, INTEGER8 new_value) := EMBED(C++ : DISTRIBUTED)
-            #option pure
-            #body
-            typedef __int64 ELEMENT_TYPE;
-
-            unsigned long numElements = lenThe_set / sizeof(ELEMENT_TYPE);
-            const ELEMENT_TYPE* source = static_cast<const ELEMENT_TYPE*>(the_set);
-            bool wasFound = false;
-
-            __lenResult = 0;
-            __result = NULL;
-            __isAllResult = false;
-
-            if (numElements > 0)
-            {
-                for (unsigned long x = 0; x < numElements; x++)
-                {
-                    if (source[x] == new_value)
-                    {
-                        wasFound = true;
-                        break;
-                    }
-                }
-            }
-
-            // Allocate memory to hold the result
-            __lenResult = lenThe_set + (!wasFound ? sizeof(ELEMENT_TYPE) : 0);
-            if (__lenResult > 0)
-            {
-                __result = rtlMalloc(__lenResult);
-
-                // Copy the original input
-                memcpy(__result, source, lenThe_set);
-
-                // Append new value if needed
-                if (!wasFound)
-                {
-                    reinterpret_cast<ELEMENT_TYPE*>(__result)[numElements] = new_value;
-                }
-            }
-        ENDEMBED;
-
-        /**
-         * Appends a new value to an existing set only if the value does not
-         * already appear in the set.
-         *
-         * @param   the_set     The set to process; may be any
-         *                      SET OF UNSIGNED[n]; may be empty
-         * @param   new_value   The value to append if it is not already a
-         *                      member of the_set
-         *
-         * @return  A new SET OF UNSIGNED8 value
-         */
-        EXPORT SET OF UNSIGNED8 _AppendIfUnsigned(SET OF UNSIGNED8 the_set, UNSIGNED8 new_value) := EMBED(C++ : DISTRIBUTED)
-            #option pure
-            #body
-            typedef unsigned __int64 ELEMENT_TYPE;
-
-            unsigned long numElements = lenThe_set / sizeof(ELEMENT_TYPE);
-            const ELEMENT_TYPE* source = static_cast<const ELEMENT_TYPE*>(the_set);
-            bool wasFound = false;
-
-            __lenResult = 0;
-            __result = NULL;
-            __isAllResult = false;
-
-            if (numElements > 0)
-            {
-                for (unsigned long x = 0; x < numElements; x++)
-                {
-                    if (source[x] == new_value)
-                    {
-                        wasFound = true;
-                        break;
-                    }
-                }
-            }
-
-            // Allocate memory to hold the result
-            __lenResult = lenThe_set + (!wasFound ? sizeof(ELEMENT_TYPE) : 0);
-            if (__lenResult > 0)
-            {
-                __result = rtlMalloc(__lenResult);
-
-                // Copy the original input
-                memcpy(__result, source, lenThe_set);
-
-                // Append new value if needed
-                if (!wasFound)
-                {
-                    reinterpret_cast<ELEMENT_TYPE*>(__result)[numElements] = new_value;
-                }
-            }
-        ENDEMBED;
-
-        /**
-         * Appends a new value to an existing set only if the value does not
-         * already appear in the set.
-         *
-         * @param   the_set     The set to process; may be any SET OF REAL[n];
-         *                      may be empty
-         * @param   new_value   The value to append if it is not already a
-         *                      member of the_set
-         *
-         * @return  A new SET OF REAL8 value
-         */
-        EXPORT SET OF REAL8 _AppendIfReal(SET OF REAL8 the_set, REAL8 new_value) := EMBED(C++ : DISTRIBUTED)
-            #option pure
-            #body
-            typedef double ELEMENT_TYPE;
-
-            unsigned long numElements = lenThe_set / sizeof(ELEMENT_TYPE);
-            const ELEMENT_TYPE* source = static_cast<const ELEMENT_TYPE*>(the_set);
-            bool wasFound = false;
-
-            __lenResult = 0;
-            __result = NULL;
-            __isAllResult = false;
-
-            if (numElements > 0)
-            {
-                for (unsigned long x = 0; x < numElements; x++)
-                {
-                    if (source[x] == new_value)
-                    {
-                        wasFound = true;
-                        break;
-                    }
-                }
-            }
-
-            // Allocate memory to hold the result
-            __lenResult = lenThe_set + (!wasFound ? sizeof(ELEMENT_TYPE) : 0);
-            if (__lenResult > 0)
-            {
-                __result = rtlMalloc(__lenResult);
-
-                // Copy the original input
-                memcpy(__result, source, lenThe_set);
-
-                // Append new value if needed
-                if (!wasFound)
-                {
-                    reinterpret_cast<ELEMENT_TYPE*>(__result)[numElements] = new_value;
-                }
-            }
-        ENDEMBED;
-
-        /**
-         * Appends a new value to an existing set only if the value does not
-         * already appear in the set.
-         *
-         * @param   the_set     The set to process; may be any SET OF DATA[n];
-         *                      may be empty
-         * @param   new_value   The value to append if it is not already a
-         *                      member of the_set
-         *
-         * @return  A new SET OF DATA value
-         */
-        EXPORT SET OF DATA _AppendIfData(SET OF DATA the_set, DATA new_value) := EMBED(C++ : DISTRIBUTED)
-            #option pure
-
-            class AppendDataInfo
-            {
-                public:
-
-                    AppendDataInfo(int32_t _size, const void* _dataPtr)
-                        :   size(_size), dataPtr(_dataPtr)
-                        {}
-
-                    AppendDataInfo(const void* ptr)
-                        {
-                            size = *reinterpret_cast<const int32_t*>(ptr);
-                            dataPtr = ptr + sizeof(int32_t);
-                        }
-
-                    unsigned long BytesUsed()
-                        {
-                            return sizeof(size) + size;
-                        }
-
-                    void CopyToMem(void* destPtr)
-                        {
-                            *reinterpret_cast<int32_t*>(destPtr) = size;
-                            if (size > 0)
-                            {
-                                memcpy(destPtr + sizeof(int32_t), dataPtr, size);
-                            }
-                        }
-
-                    int32_t size;
-                    const void* dataPtr;
-            };
-
-            inline bool operator==(const AppendDataInfo& lhs, const AppendDataInfo& rhs)
-                {
-                    return (lhs.size == rhs.size && (lhs.size == 0 || memcmp(lhs.dataPtr, rhs.dataPtr, lhs.size) == 0));
-                }
-
-            #body
-
-            __lenResult = 0;
-            __result = NULL;
-            __isAllResult = false;
-
-            AppendDataInfo  newValueElement(lenNew_value, new_value);
-            bool            wasFound = false;
-
-
-            if (lenThe_set > 0)
-            {
-                const void*     sourcePtr = the_set;
-
-                while (sourcePtr < the_set + lenThe_set)
-                {
-                    AppendDataInfo sourceElement(sourcePtr);
-
-                    if (sourceElement == newValueElement)
-                    {
-                        wasFound = true;
-                        break;
-                    }
-                    else
-                    {
-                        sourcePtr += sourceElement.BytesUsed();
-                    }
-                }
-            }
-
-            // Allocate memory to hold the result
-            __lenResult = lenThe_set + (!wasFound ? newValueElement.BytesUsed() : 0);
-            if (__lenResult > 0)
-            {
-                __result = rtlMalloc(__lenResult);
-
-                // Copy the original input
-                memcpy(__result, the_set, lenThe_set);
-
-                // Append new value if needed
-                if (!wasFound)
-                {
-                    newValueElement.CopyToMem(__result + lenThe_set);
-                }
-            }
-        ENDEMBED;
-
     END; // InternalCode module
 
     //--------------------------------------------------------------------------
@@ -1375,22 +1103,6 @@ EXPORT Sets := MODULE
     END;
 
     /**
-     * Appends a new value to an existing set only if the value does not
-     * already appear in the set.
-     *
-     * @param   the_set     The set to process; may be any SET OF INTEGER[n]
-     *                      or SET OF UNSIGNED[n] where no value exceeds
-     *                      2^63 - 1; may be empty
-     * @param   new_value   The value to append if it is not already a
-     *                      member of the_set
-     *
-     * @return  A new SET OF INTEGER8 value
-     */
-    EXPORT SET OF INTEGER8 IntegerAppendIf(SET OF INTEGER8 the_set, INTEGER8 new_value) := FUNCTION
-        RETURN InternalCode._AppendIfInteger(the_set, new_value);
-    END;
-
-    /**
      * Deduplicates a SET OF UNSIGNED value.
      *
      * @param   the_set     The set to deduplicate; may be any SET OF UNSIGNED[n]
@@ -1454,21 +1166,6 @@ EXPORT Sets := MODULE
     END;
 
     /**
-     * Appends a new value to an existing set only if the value does not
-     * already appear in the set.
-     *
-     * @param   the_set     The set to process; may be any
-     *                      SET OF UNSIGNED[n]; may be empty
-     * @param   new_value   The value to append if it is not already a
-     *                      member of the_set
-     *
-     * @return  A new SET OF UNSIGNED8 value
-     */
-    EXPORT SET OF UNSIGNED8 UnsignedAppendIf(SET OF UNSIGNED8 the_set, UNSIGNED8 new_value) := FUNCTION
-        RETURN InternalCode._AppendIfUnsigned(the_set, new_value);
-    END;
-
-    /**
      * Deduplicates a SET OF REAL value.
      *
      * @param   the_set     The set to deduplicate; may be any SET OF REAL[n]
@@ -1529,21 +1226,6 @@ EXPORT Sets := MODULE
      */
     EXPORT SET OF REAL8 RealDifference(SET OF REAL8 the_set1, SET OF REAL8 the_set2) := FUNCTION
         RETURN InternalCode._MergeReal(the_set1, the_set2, MERGE_TYPE_DIFFERENCE);
-    END;
-
-    /**
-     * Appends a new value to an existing set only if the value does not
-     * already appear in the set.
-     *
-     * @param   the_set     The set to process; may be any SET OF REAL[n];
-     *                      may be empty
-     * @param   new_value   The value to append if it is not already a
-     *                      member of the_set
-     *
-     * @return  A new SET OF REAL8 value
-     */
-    EXPORT SET OF REAL8 RealAppendIf(SET OF REAL8 the_set, REAL8 new_value) := FUNCTION
-        RETURN InternalCode._AppendIfReal(the_set, new_value);
     END;
 
     /**
@@ -1611,21 +1293,6 @@ EXPORT Sets := MODULE
      */
     EXPORT SET OF DATA DataDifference(SET OF DATA the_set1, SET OF DATA the_set2) := FUNCTION
         RETURN InternalCode._MergeData(the_set1, the_set2, MERGE_TYPE_DIFFERENCE);
-    END;
-
-    /**
-     * Appends a new value to an existing set only if the value does not
-     * already appear in the set.
-     *
-     * @param   the_set     The set to process; may be any SET OF DATA[n];
-     *                      may be empty
-     * @param   new_value   The value to append if it is not already a
-     *                      member of the_set
-     *
-     * @return  A new SET OF DATA value
-     */
-    EXPORT SET OF DATA DataAppendIf(SET OF DATA the_set, DATA new_value) := FUNCTION
-        RETURN InternalCode._AppendIfData(the_set, new_value);
     END;
 
     /**
@@ -1702,24 +1369,6 @@ EXPORT Sets := MODULE
      */
     EXPORT SET OF STRING StringDifference(SET OF STRING the_set1, SET OF STRING the_set2) := FUNCTION
         RETURN (SET OF STRING)DataDifference((SET OF DATA)the_set1, (SET OF DATA)the_set2);
-    END;
-
-    /**
-     * Appends a new value to an existing set only if the value does not
-     * already appear in the set.  Duplicate values are determined by bytewise
-     * comparison, so this is inherently a case-sensitive comparison.  Note
-     * that the strings are coerced to DATA types during conversion, then back
-     * to STRING for return.
-     *
-     * @param   the_set     The set to process; may be any SET OF DATA[n]
-     *                      or SET OF VARSTRING[n]
-     * @param   new_value   The value to append if it is not already a
-     *                      member of the_set
-     *
-     * @return  A new SET OF STRING value
-     */
-    EXPORT SET OF STRING StringAppendIf(SET OF STRING the_set, STRING new_value) := FUNCTION
-        RETURN (SET OF STRING)DataAppendIf((SET OF DATA)the_set, (DATA)new_value);
     END;
 
     /**
@@ -1800,24 +1449,6 @@ EXPORT Sets := MODULE
         RETURN (SET OF UNICODE)DataDifference((SET OF DATA)the_set1, (SET OF DATA)the_set2);
     END;
 
-    /**
-     * Appends a new value to an existing set only if the value does not
-     * already appear in the set.  Duplicate values are determined by bytewise
-     * comparison, so this is inherently a case-sensitive comparison.  Note
-     * that the strings are coerced to DATA types during conversion, then back
-     * to UNICODE for return.
-     *
-     * @param   the_set     The set to process; may be any SET OF UNICODE[n]
-     *                      or SET OF VARUNICODE[n]
-     * @param   new_value   The value to append if it is not already a
-     *                      member of the_set
-     *
-     * @return  A new SET OF UNICODE value
-     */
-    EXPORT SET OF UNICODE UnicodeAppendIf(SET OF UNICODE the_set, UNICODE new_value) := FUNCTION
-        RETURN (SET OF UNICODE)DataAppendIf((SET OF DATA)the_set, (DATA)new_value);
-    END;
-
 END;
 
 /*******************************************************************************
@@ -1825,7 +1456,7 @@ END;
 
 IMPORT Useful_ECL;
 
-ExecuteTest(set1, set2, appendValue1, appendValue2) := MACRO
+ExecuteTest(set1, set2) := MACRO
     #DECLARE(inType);
     #SET(inType, #GETDATATYPE(set1));
 
@@ -1854,8 +1485,6 @@ ExecuteTest(set1, set2, appendValue1, appendValue2) := MACRO
     #SET(IntersectionFunction, %'BaseModule'% + '.' + %'baseType'% + 'Intersection');
     #DECLARE(DifferenceFunction);
     #SET(DifferenceFunction, %'BaseModule'% + '.' + %'baseType'% + 'Difference');
-    #DECLARE(AppendIfFunction);
-    #SET(AppendIfFunction, %'BaseModule'% + '.' + %'baseType'% + 'AppendIf');
 
     OUTPUT(set1, NAMED(%'baseType'% + '_value_1'));
     OUTPUT(set2, NAMED(%'baseType'% + '_value_2'));
@@ -1873,14 +1502,12 @@ ExecuteTest(set1, set2, appendValue1, appendValue2) := MACRO
     OUTPUT(%DifferenceFunction%((%inType%)[], set2), NAMED(%'baseType'% + '_difference_first_empty'));
     OUTPUT(%DifferenceFunction%(set1, (%inType%)[]), NAMED(%'baseType'% + '_difference_second_empty'));
     OUTPUT(%DifferenceFunction%((%inType%)[], (%inType%)[]), NAMED(%'baseType'% + '_difference_both_empty'));
-    OUTPUT(%AppendIfFunction%(set1, appendValue1), NAMED(%'baseType'% + '_appendif_' + (STRING)appendValue1));
-    OUTPUT(%AppendIfFunction%(set1, appendValue2), NAMED(%'baseType'% + '_appendif_' + (STRING)appendValue2));
 ENDMACRO;
 
-ExecuteTest((SET OF UNSIGNED)[1,5,2,1,3,4,5], (SET OF UNSIGNED)[1,3,5,7,9], 5, 11);
-ExecuteTest((SET OF INTEGER)[42,-99,2017,42,0,0,-98], (SET OF INTEGER)[-99,10,2016,10,0,100], 2017, 2018);
-ExecuteTest((SET OF REAL)[-1.1,2.2,5.5,3.0,4.4,5.5,4], (SET OF REAL)[-9,3,1.1,-4.4,1.1,3.0], 3, 6);
-ExecuteTest((SET OF STRING)['','cpu','ram','display','ram','CPU',''], (SET OF STRING)['keyboard','','ram','DISPLAY'], 'ram', 'cable');
-ExecuteTest((SET OF UNICODE)[u'coffee',u'tea',u'',u'milk',u'Tea',u'coffee',u''], (SET OF UNICODE)[u'coffe',u'Lemonade',u'soda',u'milk',u'juice',u'Soda'], u'tea', u'beer');
+ExecuteTest((SET OF UNSIGNED)[1,5,2,1,3,4,5], (SET OF UNSIGNED)[1,3,5,7,9]);
+ExecuteTest((SET OF INTEGER)[42,-99,2017,42,0,0,-98], (SET OF INTEGER)[-99,10,2016,10,0,100]);
+ExecuteTest((SET OF REAL)[-1.1,2.2,5.5,3.0,4.4,5.5,4], (SET OF REAL)[-9,3,1.1,-4.4,1.1,3.0]);
+ExecuteTest((SET OF STRING)['','cpu','ram','display','ram','CPU',''], (SET OF STRING)['keyboard','','ram','DISPLAY']);
+ExecuteTest((SET OF UNICODE)[u'coffee',u'tea',u'',u'milk',u'Tea',u'coffee',u''], (SET OF UNICODE)[u'coffe',u'Lemonade',u'soda',u'milk',u'juice',u'Soda']);
 
 *******************************************************************************/
