@@ -14,31 +14,31 @@ well-commented.
 ## Snippet Categories
 
 ### Programming
-* [BWR_InversionOfControlDemo.ecl](https://github.com/dcamper/Useful_ECL/blob/master/BWR/BWR_InversionOfControlDemo.ecl)
-* [BWR_ShowPlatformConstants.ecl](https://github.com/dcamper/Useful_ECL/blob/master/BWR/BWR_ShowPlatformConstants.ecl)
-* [NotifyHelper.ecl](https://github.com/dcamper/Useful_ECL/blob/master/NotifyHelper.ecl)
-* [PlatformVersionCheck.ecl](https://github.com/dcamper/Useful_ECL/blob/master/PlatformVersionCheck.ecl)
-* [RandomFilename.ecl](https://github.com/dcamper/Useful_ECL/blob/master/RandomFilename.ecl)
-* [ReadLocalConfigFile.ecl](https://github.com/dcamper/Useful_ECL/blob/master/ReadLocalConfigFile.ecl)
-* [ReadLocalFile.ecl](https://github.com/dcamper/Useful_ECL/blob/master/ReadLocalFile.ecl)
-* [RemoveAllSuperFileLogicalFiles.ecl](https://github.com/dcamper/Useful_ECL/blob/master/RemoveAllSuperFileLogicalFiles.ecl)
-* [ScalarArgType.ecl](https://github.com/dcamper/Useful_ECL/blob/master/ScalarArgType.ecl)
-* [Sets.ecl](https://github.com/dcamper/Useful_ECL/blob/master/Sets.ecl)
-* [Str.ecl](https://github.com/dcamper/Useful_ECL/blob/master/Str.ecl)
+* [BWR_InversionOfControlDemo.ecl](BWR_InversionOfControlDemo.ecl)
+* [BWR_ShowPlatformConstants.ecl](BWR_ShowPlatformConstants.ecl)
+* [NotifyHelper.ecl](NotifyHelper.ecl)
+* [PlatformVersionCheck.ecl](PlatformVersionCheck.ecl)
+* [RandomFilename.ecl](RandomFilename.ecl)
+* [ReadLocalConfigFile.ecl](ReadLocalConfigFile.ecl)
+* [ReadLocalFile.ecl](ReadLocalFile.ecl)
+* [RemoveAllSuperFileLogicalFiles.ecl](RemoveAllSuperFileLogicalFiles.ecl)
+* [ScalarArgType.ecl](ScalarArgType.ecl)
+* [Sets.ecl](Sets.ecl)
+* [Str.ecl](Str.ecl)
 
 ### Configuration
-* [BWR_ShowInstalledPlugins.ecl](https://github.com/dcamper/Useful_ECL/blob/master/BWR/BWR_ShowInstalledPlugins.ecl)
+* [BWR_ShowInstalledPlugins.ecl](BWR_ShowInstalledPlugins.ecl)
 
 ### Transforming Data
-* [AppendUniqueID.ecl](https://github.com/dcamper/Useful_ECL/blob/master/AppendUniqueID.ecl)
-* [CleanBusinessName.ecl](https://github.com/dcamper/Useful_ECL/blob/master/CleanBusinessName.ecl)
-* [ConvertTopLevelFieldsToNewDataType.ecl](https://github.com/dcamper/Useful_ECL/blob/master/ConvertTopLevelFieldsToNewDataType.ecl)
-* [CreateNominalValues.ecl](https://github.com/dcamper/Useful_ECL/blob/master/CreateNominalValues.ecl)
-* [ReplaceCharInDataset.ecl](https://github.com/dcamper/Useful_ECL/blob/master/ReplaceCharInDataset.ecl)
+* [AppendUniqueID.ecl](AppendUniqueID.ecl)
+* [CleanBusinessName.ecl](CleanBusinessName.ecl)
+* [ConvertTopLevelFieldsToNewDataType.ecl](ConvertTopLevelFieldsToNewDataType.ecl)
+* [CreateNominalValues.ecl](CreateNominalValues.ecl)
+* [ReplaceCharInDataset.ecl](ReplaceCharInDataset.ecl)
 
 ### Data Introspection
-* [BWR_RecordAllDataTypes.ecl](https://github.com/dcamper/Useful_ECL/blob/master/BWR/BWR_RecordAllDataTypes.ecl)
-* [CSVHeaderStrForDataset.ecl](https://github.com/dcamper/Useful_ECL/blob/master/CSVHeaderStrForDataset.ecl)
+* [BWR_RecordAllDataTypes.ecl](BWR_RecordAllDataTypes.ecl)
+* [CSVHeaderStrForDataset.ecl](CSVHeaderStrForDataset.ecl)
 
 ### Utilities
-* [DataPull.ecl](https://github.com/dcamper/Useful_ECL/blob/master/DataPull.ecl)
+* [DataPull.ecl](DataPull.ecl)
