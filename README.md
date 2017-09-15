@@ -14,8 +14,8 @@ well-commented.
 ## Snippet Categories
 
 ### Programming
-* [BWR_InversionOfControlDemo.ecl](BWR_InversionOfControlDemo.ecl)
-* [BWR_ShowPlatformConstants.ecl](BWR_ShowPlatformConstants.ecl)
+* [BWR_InversionOfControlDemo.ecl](BWR/BWR_InversionOfControlDemo.ecl)
+* [BWR_ShowPlatformConstants.ecl](BWR/BWR_ShowPlatformConstants.ecl)
 * [NotifyHelper.ecl](NotifyHelper.ecl)
 * [PlatformVersionCheck.ecl](PlatformVersionCheck.ecl)
 * [RandomFilename.ecl](RandomFilename.ecl)
@@ -27,7 +27,7 @@ well-commented.
 * [Str.ecl](Str.ecl)
 
 ### Configuration
-* [BWR_ShowInstalledPlugins.ecl](BWR_ShowInstalledPlugins.ecl)
+* [BWR_ShowInstalledPlugins.ecl](BWR/BWR_ShowInstalledPlugins.ecl)
 
 ### Transforming Data
 * [AppendUniqueID.ecl](AppendUniqueID.ecl)
@@ -37,7 +37,7 @@ well-commented.
 * [ReplaceCharInDataset.ecl](ReplaceCharInDataset.ecl)
 
 ### Data Introspection
-* [BWR_RecordAllDataTypes.ecl](BWR_RecordAllDataTypes.ecl)
+* [BWR_RecordAllDataTypes.ecl](BWR/BWR_RecordAllDataTypes.ecl)
 * [CSVHeaderStrForDataset.ecl](CSVHeaderStrForDataset.ecl)
 
 ### Utilities
