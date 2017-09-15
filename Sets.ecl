@@ -97,7 +97,7 @@
  * those functions would be perfect candidates for a template function
  * implementation.  Unfortunately, embedded C++ functions within ECL do not
  * have any visibility to each other nor to a well-defined shared code space.
- * The C++ portions could have been written an ECL service plugin instead,
+ * The C++ portions could have been written as an ECL service plugin instead,
  * which would allow template functions to be used, but plugins require extra
  * cluster maintenance (you have to install them separately).  The choice here
  * was to go ahead and duplicate the C++ code so that the impact on the ECL
