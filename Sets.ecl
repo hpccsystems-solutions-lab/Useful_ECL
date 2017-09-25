@@ -132,7 +132,7 @@ EXPORT Sets := MODULE
          *          from the two given sets; if merge_type == 2 then the values will
          *          represent all unique common values from the two given sets
          */
-        EXPORT SET OF INTEGER8 _MergeInteger(SET OF INTEGER8 the_set1, SET OF INTEGER8 the_set2, UNSIGNED2 merge_type) := EMBED(C++ : DISTRIBUTED)
+        EXPORT SET OF INTEGER8 _MergeInteger(SET OF INTEGER8 the_set1, SET OF INTEGER8 the_set2, UNSIGNED2 merge_type) := EMBED(C++)
             #option pure
             #body
             typedef __int64 ELEMENT_TYPE;
@@ -339,7 +339,7 @@ EXPORT Sets := MODULE
          *          from the two given sets; if merge_type == 2 then the values will
          *          represent all unique common values from the two given sets
          */
-        EXPORT SET OF UNSIGNED8 _MergeUnsigned(SET OF UNSIGNED8 the_set1, SET OF UNSIGNED8 the_set2, UNSIGNED2 merge_type) := EMBED(C++ : DISTRIBUTED)
+        EXPORT SET OF UNSIGNED8 _MergeUnsigned(SET OF UNSIGNED8 the_set1, SET OF UNSIGNED8 the_set2, UNSIGNED2 merge_type) := EMBED(C++)
             #option pure
             #body
             typedef unsigned __int64 ELEMENT_TYPE;
@@ -545,7 +545,7 @@ EXPORT Sets := MODULE
          *          from the two given sets; if merge_type == 2 then the values will
          *          represent all unique common values from the two given sets
          */
-        EXPORT SET OF REAL8 _MergeReal(SET OF REAL8 the_set1, SET OF REAL8 the_set2, UNSIGNED2 merge_type) := EMBED(C++ : DISTRIBUTED)
+        EXPORT SET OF REAL8 _MergeReal(SET OF REAL8 the_set1, SET OF REAL8 the_set2, UNSIGNED2 merge_type) := EMBED(C++)
             #option pure
             typedef double ELEMENT_TYPE;
 
@@ -750,7 +750,7 @@ EXPORT Sets := MODULE
          *          from the two given sets; if merge_type == 2 then the values will
          *          represent all unique common values from the two given sets
          */
-        EXPORT SET OF DATA _MergeData(SET OF DATA the_set1, SET OF DATA the_set2, UNSIGNED2 merge_type) := EMBED(C++ : DISTRIBUTED)
+        EXPORT SET OF DATA _MergeData(SET OF DATA the_set1, SET OF DATA the_set2, UNSIGNED2 merge_type) := EMBED(C++)
             #option pure
             #include <vector>
 

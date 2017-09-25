@@ -16,7 +16,7 @@ EXPORT Str := MODULE
      *
      * @return  The decoded string
      */
-    EXPORT STRING URLDecode(STRING s) := EMBED(C++ : DISTRIBUTED)
+    EXPORT STRING URLDecode(STRING s) := EMBED(C++)
         #include <string.h>
         #body
         const char HEX2DEC[256] =
@@ -93,7 +93,7 @@ EXPORT Str := MODULE
      *
      * @return  The encoded string
      */
-    EXPORT STRING URLEncode(STRING s) := EMBED(C++ : DISTRIBUTED)
+    EXPORT STRING URLEncode(STRING s) := EMBED(C++)
         #include <string.h>
         #body
         const char SAFE[256] =
