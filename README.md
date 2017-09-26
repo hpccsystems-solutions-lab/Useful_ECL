@@ -38,7 +38,6 @@ well-commented.
 
 ### Data Introspection
 * [BWR_RecordAllDataTypes.ecl](BWR/BWR_RecordAllDataTypes.ecl)
-* [CSVHeaderStrForDataset.ecl](CSVHeaderStrForDataset.ecl)
 
 ### Utilities
 * [DataPull.ecl](DataPull.ecl)
