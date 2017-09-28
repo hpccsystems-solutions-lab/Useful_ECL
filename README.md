@@ -37,7 +37,8 @@ well-commented.
 * [ReplaceCharInDataset.ecl](ReplaceCharInDataset.ecl)
 
 ### Data Introspection
-* [BWR_RecordAllDataTypes.ecl](BWR/BWR_RecordAllDataTypes.ecl)
+* [BWR\_File\_Part\_Analyzer.ecl](BWR/BWR_File_Part_Analyzer.ecl)
+* [BWR\_RecordAllDataTypes.ecl](BWR/BWR_RecordAllDataTypes.ecl)
 
 ### Utilities
 * [DataPull.ecl](DataPull.ecl)
