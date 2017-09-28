@@ -83,7 +83,7 @@ END;
 
 TopologyRec := RECORD
     STRING                      cluster_type {XPATH('Type')};
-    DATASET(ClusterNameRec)     clusters    {XPATH('TpClusters/TpCluster')};
+    DATASET(ClusterNameRec)     clusters     {XPATH('TpClusters/TpCluster')};
 END;
 
 rawTopologyInfo := SOAPCALL
@@ -98,20 +98,18 @@ rawTopologyInfo := SOAPCALL
         TRIM
     );
 
-topologyInfo := PROJECT
+topologyInfo := NORMALIZE
     (
-        rawTopologyInfo(COUNT(clusters) <= 1),
+        rawTopologyInfo,
+        LEFT.clusters,
         TRANSFORM
             (
                 {
                     STRING      cluster_type,
                     STRING      cluster_name
                 },
-
-                theName := LEFT.clusters[1].cluster_name;
-
                 SELF.cluster_type := IF(LEFT.cluster_type = 'ThorCluster', 'thor', SKIP),
-                SELF.cluster_name := IF(theName != '', theName, SELF.cluster_type)
+                SELF.cluster_name := IF(RIGHT.cluster_name != '', RIGHT.cluster_name, SELF.cluster_type)
             )
     );
 
