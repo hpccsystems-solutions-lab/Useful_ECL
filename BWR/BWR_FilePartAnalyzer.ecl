@@ -61,8 +61,10 @@ OUTPUT_FILE_PREFIX := 'file_part_analyzer';
 OUTPUT(FILE_NAME_PATTERN, NAMED('file_name_pattern'));
 OUTPUT(ESP_IP, NAMED('esp_ip_address'));
 
-// Get a list of all logical files on the cluster
-filenameList := DISTRIBUTE(NOTHOR(Std.File.LogicalFileList(namepattern := FILE_NAME_PATTERN, foreigndali := DALI_IP)));
+// Get a list of all logical files on the cluster that match the pattern
+allFileInfo := NOTHOR(Std.File.LogicalFileList(namepattern := FILE_NAME_PATTERN, foreigndali := DALI_IP));
+allNameInfo := TABLE(allFileInfo, {name});
+filenameList := DISTRIBUTE(allNameInfo, SKEW(0.05));
 
 // Build up a full URL for the ESP service (same as ECL Watch)
 fullUserInfo := MAP
@@ -154,7 +156,7 @@ dfuInfoRawResults := SOAPCALL
             ),
         DATASET(RawResultRec),
         XPATH('DFUInfoResponse/FileDetail'),
-        TRIM
+        TRIM, PARALLEL(50)
     );
 
 OUTPUT(COUNT(dfuInfoRawResults), NAMED('files_found_cnt'));
@@ -304,7 +306,7 @@ summary := DENORMALIZE
         TRANSFORM
             (
                 {
-                    RECORDOF(LEFT),
+                    RECORDOF(LEFT) - [file_part_cnt, num_high_skew, num_low_skew, num_index_parts],
                     DATASET(FilePartRec)    partInfo
                 },
                 SELF.partInfo := PROJECT(ROWS(RIGHT), TRANSFORM(FilePartRec, SELF := LEFT)),
