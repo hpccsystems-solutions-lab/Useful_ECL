@@ -1,3 +1,28 @@
+/**
+ * BWR that looks for files with "bad" data skews.  Such files may cause poor
+ * performance if the skew is not addressed by ECL code.
+ *
+ * At a minimum, the ESP_IP attribute below should be adjusted to make sure it
+ * points to the cluster you are analyzing.  The value should basically be the
+ * IP address used by ECL Watch.  Other ESP-oriented attributes, located nearby,
+ * may need to be adjusted as well.
+ *
+ * The DALI_IP attribute may also need to be adjusted if you are analyzing
+ * data on a cluster that is different than the cluster that is running this
+ * job.  Basically, the DALI_IP should be the IP address of the Dali service
+ * of that cluster.
+ *
+ * The FILE_NAME_PATTERN attribute governs what files are examined.
+ *
+ * This code creates files as its output since the output can be much larger
+ * than what can be displayed within a workunit.  The files that are created
+ * all have the same logical filename prefix and that can be changed by
+ * modifying the OUTPUT_FILE_PREFIX attribute.
+ *
+ * The 'flagged thor files' output is the key point of this code.  It is a
+ * file showing the names of the skewed files as well as some additional
+ * details.
+ */
 IMPORT Std;
 
 #WORKUNIT('name', 'File Part Analyzer');
