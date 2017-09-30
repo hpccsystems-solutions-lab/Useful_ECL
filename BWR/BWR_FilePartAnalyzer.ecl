@@ -49,7 +49,17 @@ DALI_IP := Std.System.Thorlib.DaliServer();
 // full logical filename to analyze just one file
 FILE_NAME_PATTERN := '*';
 
-// All output files will be created with OUTPUT_FILE_PREFIX as a prefix
+// When there are a large number of files to process, it may be better to
+// break the task up into chunks; the two following two attributes determine
+// the maximum number of files to process at once and the starting position
+// from the sorted (by name) list; adjusting these values will give you a
+// sliding window for processing a truly large file list
+NUM_FILES_TO_PROCESS := 10000;
+FILES_TO_PROCESS_START := 1;
+
+// All output files will be created with OUTPUT_FILE_PREFIX as a prefix; the
+// FILES_TO_PROCESS_START and NUM_FILES_TO_PROCESS values will be incorporated
+// into the filenames as well
 OUTPUT_FILE_PREFIX := 'file_part_analyzer';
 
 #IF(OUTPUT_FILE_PREFIX = '')
@@ -58,13 +68,17 @@ OUTPUT_FILE_PREFIX := 'file_part_analyzer';
 
 //------------------------------------------------------------------------------
 
+MakeOutfilePrefix() := '~' + OUTPUT_FILE_PREFIX + '::' + FILES_TO_PROCESS_START + '::' + NUM_FILES_TO_PROCESS;
+
 OUTPUT(FILE_NAME_PATTERN, NAMED('file_name_pattern'));
 OUTPUT(ESP_IP, NAMED('esp_ip_address'));
 
 // Get a list of all logical files on the cluster that match the pattern
 allFileInfo := NOTHOR(Std.File.LogicalFileList(namepattern := FILE_NAME_PATTERN, foreigndali := DALI_IP));
-allNameInfo := TABLE(allFileInfo, {name});
-filenameList := DISTRIBUTE(allNameInfo, SKEW(0.05));
+allNameInfo := TABLE(allFileInfo, {name}, name, MERGE);
+OUTPUT(COUNT(allNameInfo), NAMED('unique_files_found_cnt'));
+nameSubset := CHOOSEN(SORT(allNameInfo, name), NUM_FILES_TO_PROCESS, FILES_TO_PROCESS_START);
+filenameList := DISTRIBUTE(nameSubset, SKEW(0.05));
 
 // Build up a full URL for the ESP service (same as ECL Watch)
 fullUserInfo := MAP
@@ -156,12 +170,12 @@ dfuInfoRawResults := SOAPCALL
             ),
         DATASET(RawResultRec),
         XPATH('DFUInfoResponse/FileDetail'),
-        TRIM, PARALLEL(50)
+        TRIM
     );
 
-OUTPUT(COUNT(dfuInfoRawResults), NAMED('files_found_cnt'));
+OUTPUT(COUNT(dfuInfoRawResults), NAMED('info_found_cnt'));
 
-OUTPUT(dfuInfoRawResults,,'~' + OUTPUT_FILE_PREFIX + '::01_raw_results',NOXPATH,COMPRESSED,OVERWRITE);
+OUTPUT(dfuInfoRawResults,,MakeOutfilePrefix() + '::01_raw_results',NOXPATH,COMPRESSED,OVERWRITE);
 
 //------------------------------------------------------------------------------
 // Normalize one level, hoisting the cluster name up to the file_name level
@@ -243,7 +257,7 @@ flattenedResults := NORMALIZE
             )
     );
 
-OUTPUT(flattenedResults,,'~' + OUTPUT_FILE_PREFIX + '::02_normalized_results',NOXPATH,COMPRESSED,OVERWRITE);
+OUTPUT(flattenedResults,,MakeOutfilePrefix() + '::02_normalized_results',NOXPATH,COMPRESSED,OVERWRITE);
 
 //------------------------------------------------------------------------------
 // Simple analysis of the flattened results
@@ -319,5 +333,5 @@ summary := DENORMALIZE
 //------------------------------------------------------------------------------
 sortedSummary := SORT(summary, -max_part_skew_pct, min_part_skew_pct);
 
-OUTPUT(sortedSummary,,'~' + OUTPUT_FILE_PREFIX + '::03_summary_all_thor_files',NOXPATH,COMPRESSED,OVERWRITE);
-OUTPUT(sortedSummary(flagged),,'~' + OUTPUT_FILE_PREFIX + '::04_summary_flagged_thor_files',NOXPATH,COMPRESSED,OVERWRITE);
+OUTPUT(sortedSummary,,MakeOutfilePrefix() + '::03_summary_all_thor_files',NOXPATH,COMPRESSED,OVERWRITE);
+OUTPUT(sortedSummary(flagged),,MakeOutfilePrefix() + '::04_summary_flagged_thor_files',NOXPATH,COMPRESSED,OVERWRITE);
