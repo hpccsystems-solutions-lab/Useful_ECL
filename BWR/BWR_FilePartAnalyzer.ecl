@@ -1,84 +1,50 @@
 /**
- * BWR that looks for files with "bad" data skews.  Such files may cause poor
+ * Code that looks for files with "bad" data skews.  Such files may cause poor
  * performance if the skew is not addressed by ECL code.
  *
- * At a minimum, the ESP_IP attribute below should be adjusted to make sure it
- * points to the cluster you are analyzing.  The value should basically be the
- * IP address used by ECL Watch.  Other ESP-oriented attributes, located nearby,
- * may need to be adjusted as well.
+ * This code can either be run as a batch job under any of the HPCC engines
+ * or it can be compiled and published as a Roxie or hThor query.
  *
- * The DALI_IP attribute may also need to be adjusted if you are analyzing
- * data on a cluster that is different than the cluster that is running this
- * job.  Basically, the DALI_IP should be the IP address of the Dali service
- * of that cluster.
+ * If run as a batch job, you should supply values for the following
+ * ECL attributes:
  *
- * The FILE_NAME_PATTERN attribute governs what files are examined.
+ *      WORKUNIT_ID
+ *      ESP_SCHEME
+ *      ESP_IP
+ *      ESP_PORT
+ *      ESP_USER
+ *      ESP_USER_PW
+ *      daliIPAddress
  *
- * This code creates files as its output since the output can be much larger
- * than what can be displayed within a workunit.  The files that are created
- * all have the same logical filename prefix and that can be changed by
- * modifying the OUTPUT_FILE_PREFIX attribute.
+ * If run as a query, these parameters can be supplied at run time.  The
+ * descriptions for each are below.  Note that if run as a query, the default
+ * values below are still in effect even though they will not appear on the
+ * default query form.
  *
- * The 'flagged thor files' output is the key point of this code.  It is a
- * file showing the names of the skewed files as well as some additional
- * details.
+ * There are two results from this code:  Skew information on all of the files
+ * that are used by the given workunit, and a subset of those files that may
+ * have "bad" skew values (meaning, you should perhaps consider redistributing
+ * their data or otherwise taking the skew into account).
  */
 IMPORT Std;
 
 #WORKUNIT('name', 'File Part Analyzer');
-#OPTION('pickBestEngine', FALSE);
+
+// The workunit ID to inspect; this code will find that workunit's input
+// files and analyze them for skew
+STRING WORKUNIT_ID := '' : STORED('Workunit_ID', FORMAT(SEQUENCE(100)));
 
 // ESP (ECL Watch) information for the cluster you will be inspecting; this is
 // needed even if you are analyzing data on the cluster that will be running
 // this job, as there is no way to determine an ESP URL from within ECL
-ESP_SCHEME := 'http';
-ESP_IP := '127.0.0.1';
-ESP_PORT := '8010';
-ESP_USER := '';
-ESP_USER_PW := '';
+// (as of version 6.4.0 of the HPCC platform)
+STRING ESP_SCHEME := 'http' : STORED('HTTP_Scheme', FORMAT(SEQUENCE(200)));
+STRING ESP_IP := '127.0.0.1' : STORED('ESP_IP_Address', FORMAT(SEQUENCE(300)));
+STRING ESP_PORT := '8010' : STORED('ESP_Port_Number', FORMAT(SEQUENCE(400)));
+STRING ESP_USER := '' : STORED('Username', FORMAT(SEQUENCE(500)));
+STRING ESP_USER_PW := '' : STORED('User_Password', FORMAT(SEQUENCE(600), PASSWORD));
 
-// Dali IP used to extract the list of logical files to analyze; defaults
-// to the Dali that is used by the cluster running this job; unless you
-// are analyzing data on a cluster that is different from the cluster running
-// this job, you can leave this parameter as-is
-DALI_IP := Std.System.Thorlib.DaliServer();
-
-// File name pattern to use when searching for files to analyze; use '*' to
-// analyze all Thor files; the '*' wildcard matches zero or more characters,
-// the '?' wildcard matches one character; note that you can supply an exact
-// full logical filename to analyze just one file
-FILE_NAME_PATTERN := '*';
-
-// When there are a large number of files to process, it may be better to
-// break the task up into chunks; the two following two attributes determine
-// the maximum number of files to process at once and the starting position
-// from the sorted (by name) list; adjusting these values will give you a
-// sliding window for processing a truly large file list
-NUM_FILES_TO_PROCESS := 10000;
-FILES_TO_PROCESS_START := 1;
-
-// All output files will be created with OUTPUT_FILE_PREFIX as a prefix; the
-// FILES_TO_PROCESS_START and NUM_FILES_TO_PROCESS values will be incorporated
-// into the filenames as well
-OUTPUT_FILE_PREFIX := 'file_part_analyzer';
-
-#IF(OUTPUT_FILE_PREFIX = '')
-    #ERROR('Attribute OUTPUT_FILE_PREFIX cannot be an empty string')
-#END
-
-//------------------------------------------------------------------------------
-
-MakeOutfilePrefix() := '~' + OUTPUT_FILE_PREFIX + '::' + FILES_TO_PROCESS_START + '::' + NUM_FILES_TO_PROCESS;
-
-OUTPUT(FILE_NAME_PATTERN, NAMED('file_name_pattern'));
-OUTPUT(ESP_IP, NAMED('esp_ip_address'));
-
-// Get a list of all logical files on the cluster that match the pattern
-allFileInfo := NOTHOR(Std.File.LogicalFileList(namepattern := FILE_NAME_PATTERN, foreigndali := DALI_IP));
-allNameInfo := TABLE(allFileInfo, {name}, name, MERGE);
-OUTPUT(COUNT(allNameInfo), NAMED('unique_files_found_cnt'));
-nameSubset := CHOOSEN(SORT(allNameInfo, name), NUM_FILES_TO_PROCESS, FILES_TO_PROCESS_START);
-filenameList := DISTRIBUTE(nameSubset, SKEW(0.05));
+//==============================================================================
 
 // Build up a full URL for the ESP service (same as ECL Watch)
 fullUserInfo := MAP
@@ -89,6 +55,29 @@ fullUserInfo := MAP
     );
 
 serviceURL := ESP_SCHEME + '://' + TRIM(fullUserInfo, LEFT, RIGHT) + ESP_IP + ':' + ESP_PORT;
+
+//------------------------------------------------------------------------------
+// Get list of input files used by workunit
+//------------------------------------------------------------------------------
+filenameList := SOAPCALL
+    (
+        serviceURL + '/WsWorkunits?ver_=1.62', // Verified with platform 6.2.20-1
+        'WUInfo',
+        {
+            STRING      wuid                        {XPATH('Wuid')} := 'W20171007-065042',
+            BOOLEAN     includeExceptions           {XPATH('IncludeExceptions')} := FALSE,
+            BOOLEAN     includeGraphs               {XPATH('IncludeGraphs')} := FALSE,
+            BOOLEAN     includeSourceFiles          {XPATH('IncludeSourceFiles')} := TRUE,
+            BOOLEAN     includeResults              {XPATH('IncludeResults')} := FALSE,
+            BOOLEAN     includeVariables            {XPATH('IncludeVariables')} := FALSE,
+            BOOLEAN     includeTimers               {XPATH('IncludeTimers')} := FALSE,
+            BOOLEAN     includeDebugValues          {XPATH('IncludeDebugValues')} := FALSE,
+            BOOLEAN     includeApplicationValues    {XPATH('IncludeApplicationValues')} := FALSE,
+            BOOLEAN     includeWorkflows            {XPATH('IncludeWorkflows')} := FALSE
+        },
+        DATASET({STRING name {XPATH('Name')}}),
+        XPATH('WUInfoResponse/Workunit/SourceFiles/ECLSourceFile')
+    );
 
 //------------------------------------------------------------------------------
 // Get topology information so we know what names are used for Thor clusters
@@ -173,10 +162,6 @@ dfuInfoRawResults := SOAPCALL
         TRIM
     );
 
-OUTPUT(COUNT(dfuInfoRawResults), NAMED('info_found_cnt'));
-
-OUTPUT(dfuInfoRawResults,,MakeOutfilePrefix() + '::01_raw_results',NOXPATH,COMPRESSED,OVERWRITE);
-
 //------------------------------------------------------------------------------
 // Normalize one level, hoisting the cluster name up to the file_name level
 //------------------------------------------------------------------------------
@@ -218,8 +203,6 @@ onlyThorData := JOIN
         LOOKUP
     );
 
-OUTPUT(COUNT(onlyThorData), NAMED('thor_files_found_cnt'));
-
 //------------------------------------------------------------------------------
 // Normalize file part information; we'll wind up with one record per file
 // part
@@ -248,7 +231,7 @@ flattenedResults := NORMALIZE
             (
                 DFUResultRec3,
 
-                REAL idealpart_size_bytes := LEFT.file_size_bytes / Std.System.Thorlib.Nodes();
+                REAL idealpart_size_bytes := LEFT.file_size_bytes / MAX(LEFT.file_parts, part_id);
 
                 SELF.part_size_bytes := (UNSIGNED8)Std.Str.FilterOut(RIGHT.part_size_bytes, ','),
                 SELF.part_skew_pct := ((REAL)SELF.part_size_bytes - idealpart_size_bytes) / idealpart_size_bytes * 100,
@@ -256,8 +239,6 @@ flattenedResults := NORMALIZE
                 SELF := LEFT
             )
     );
-
-OUTPUT(flattenedResults,,MakeOutfilePrefix() + '::02_normalized_results',NOXPATH,COMPRESSED,OVERWRITE);
 
 //------------------------------------------------------------------------------
 // Simple analysis of the flattened results
@@ -305,8 +286,6 @@ flaggedAnalysis := PROJECT
             )
     );
 
-OUTPUT(COUNT(flaggedAnalysis(flagged)), NAMED('flagged_file_cnt'));
-
 //------------------------------------------------------------------------------
 // Attach detailed part information to each file
 //------------------------------------------------------------------------------
@@ -333,5 +312,5 @@ summary := DENORMALIZE
 //------------------------------------------------------------------------------
 sortedSummary := SORT(summary, -max_part_skew_pct, min_part_skew_pct);
 
-OUTPUT(sortedSummary,,MakeOutfilePrefix() + '::03_summary_all_thor_files',NOXPATH,COMPRESSED,OVERWRITE);
-OUTPUT(sortedSummary(flagged),,MakeOutfilePrefix() + '::04_summary_flagged_thor_files',NOXPATH,COMPRESSED,OVERWRITE);
+OUTPUT(sortedSummary, NAMED('AllFiles'), NOXPATH);
+OUTPUT(sortedSummary(flagged), NAMED('FlaggedFiles'), NOXPATH);
