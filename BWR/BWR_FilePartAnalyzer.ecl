@@ -9,12 +9,9 @@
  * ECL attributes:
  *
  *      WORKUNIT_ID
- *      ESP_SCHEME
- *      ESP_IP
- *      ESP_PORT
+ *      ESP_URL
  *      ESP_USER
  *      ESP_USER_PW
- *      daliIPAddress
  *
  * If run as a query, these parameters can be supplied at run time.  The
  * descriptions for each are below.  Note that if run as a query, the default
@@ -38,11 +35,9 @@ STRING WORKUNIT_ID := '' : STORED('Workunit_ID', FORMAT(SEQUENCE(100)));
 // needed even if you are analyzing data on the cluster that will be running
 // this job, as there is no way to determine an ESP URL from within ECL
 // (as of version 6.4.0 of the HPCC platform)
-STRING ESP_SCHEME := 'http' : STORED('HTTP_Scheme', FORMAT(SEQUENCE(200)));
-STRING ESP_IP := '127.0.0.1' : STORED('ESP_IP_Address', FORMAT(SEQUENCE(300)));
-STRING ESP_PORT := '8010' : STORED('ESP_Port_Number', FORMAT(SEQUENCE(400)));
-STRING ESP_USER := '' : STORED('Username', FORMAT(SEQUENCE(500)));
-STRING ESP_USER_PW := '' : STORED('User_Password', FORMAT(SEQUENCE(600), PASSWORD));
+STRING ESP_URL := 'http://127.0.0.1:8010' : STORED('ESP_URL', FORMAT(SEQUENCE(200)));
+STRING ESP_USER := '' : STORED('Username', FORMAT(SEQUENCE(300)));
+STRING ESP_USER_PW := '' : STORED('User_Password', FORMAT(SEQUENCE(400), PASSWORD));
 
 //==============================================================================
 
@@ -54,7 +49,7 @@ fullUserInfo := MAP
         ''
     );
 
-serviceURL := ESP_SCHEME + '://' + TRIM(fullUserInfo, LEFT, RIGHT) + ESP_IP + ':' + ESP_PORT;
+serviceURL := REGEXREPLACE('^(https?://)', TRIM(ESP_URL, LEFT, RIGHT), '$1' + TRIM(fullUserInfo, LEFT, RIGHT));
 
 //------------------------------------------------------------------------------
 // Get list of input files used by workunit
