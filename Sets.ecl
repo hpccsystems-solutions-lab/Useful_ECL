@@ -5,7 +5,7 @@
  *  -   DEDUPLICATE the values within a set:  The deduplicated values are
  *      returned in the same order in which they appear in the input.
  *
- *  -   Find the UNION of values between two sets:  Merge two sets together
+ *  -   Find the UNION of values between two sets:  Merge two sets together,
  *      deduplicate the values, and return the result as one set.  The returned
  *      values appear in the same order in which they appear in the first set,
  *      then the same order in which they appear in the second set.
@@ -50,7 +50,7 @@
  * most appropriate method for your datatype.  The functions for each datatype
  * are:
  *
- *      SET OF INTEGER[n] / SET OF UNSIGNED[n] (if max value < 2^64)
+ *      SET OF INTEGER[n] / SET OF UNSIGNED[n] (if max value < 2^63)
  *          IntegerDedup()
  *          IntegerUnion()
  *          IntegerIntersection()
@@ -1020,7 +1020,7 @@ EXPORT Sets := MODULE
     END; // InternalCode module
 
     //--------------------------------------------------------------------------
-    // Export Functions
+    // Exported Functions
     //--------------------------------------------------------------------------
 
     /**
