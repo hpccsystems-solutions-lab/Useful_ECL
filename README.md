@@ -18,6 +18,7 @@ well-commented.
 * [BWR_ShowPlatformConstants.ecl](BWR/BWR_ShowPlatformConstants.ecl)
 * [NotifyHelper.ecl](NotifyHelper.ecl)
 * [PlatformVersionCheck.ecl](PlatformVersionCheck.ecl)
+* [Factorial.ecl](Factorial.ecl)
 * [RandomFilename.ecl](RandomFilename.ecl)
 * [ReadLocalConfigFile.ecl](ReadLocalConfigFile.ecl)
 * [ReadLocalFile.ecl](ReadLocalFile.ecl)
