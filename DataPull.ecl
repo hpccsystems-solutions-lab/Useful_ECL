@@ -30,13 +30,17 @@
  * The map indicates on which destination cluster to put a new or modified
  * file, given the name of the remote cluster.
  *
- * The code can be executed in "dry run" mode.  In this mode, every action
- * that would normally be taken is compiled into a list of commands and then
- * displayed in a workunit result.  This gives you the opportunity to see what
- * the code would do if only given the chance.
+ * The code can be executed in "dry run" mode (which is the default).  In this
+ * mode, every action that would normally be taken is compiled into a list of
+ * commands and then displayed in a workunit result.  This gives you the
+ * opportunity to see what the code would do if only given the chance.
  *
  * This code must be executed on the hthor HPCC engine.  If you try to execute
  * it on a different engine then it will fail with an informative error.
+ *
+ * KNOWN LIMITATION:  This code will not correctly process Roxie indexes that
+ * are in use on the local system and need to be modified, nor will it update
+ * local Roxie queries that need new data coming in from the remote system.
  *
  * Exported functions:
  *
@@ -397,7 +401,7 @@ EXPORT DataPull := MODULE
      */
     SHARED CollectFileInfoFromSystem(STRING dali, SET OF STRING patterns) := FUNCTION
         initialPatternResult := GetInfoForFilesMatchingPatterns(dali, patterns);
-        superSubResult := GetAllSubFiles(initialPatternResult, dali);
+        superSubResult := GetAllSubFiles(initialPatternResult, dali) : INDEPENDENT;
 
         // We need to add file information for files found while gathering
         // subfiles but were not included in the initial pattern match
@@ -417,7 +421,7 @@ EXPORT DataPull := MODULE
         unreportedSubFileInfo := GetInfoForFilesMatchingPatterns(dali, unreportedNameSet);
 
         // Concatenate the additional files with the initial pattern result
-        allFileInfo := initialPatternResult + unreportedSubFileInfo;
+        allFileInfo := initialPatternResult + unreportedSubFileInfo : INDEPENDENT;
 
         RETURN MODULE
             EXPORT DATASET(FileInfoRec)                 files := allFileInfo;
@@ -802,15 +806,13 @@ EXPORT DataPull := MODULE
      *                          than the destination cluster (e.g. 'thor' versus
      *                          'mythor'); OPTIONAL, defaults to an empty
      *                          dataset
-     * @param   isDryRun        If TRUE, the actions are summarized as a list
-     *                          of commands and shown in a workunit result
-     *                          named 'DryRunActions'; if FALSE, the actions
-     *                          are actually executed; OPTIONAL, defaults to
-     *                          TRUE for safety
+     * @param   isDryRun        If TRUE, only information about the analysis
+     *                          and commands that would be executed are shown
+     *                          as results; if FALSE then the commands are also
+     *                          executed; defaults to TRUE for safety
      *
-     * @return  If isDryRun is TRUE then a single workunit result containing
-     *          the commands that would be executed; if isDryRun is FALSE then
-     *          a SEQUENTIAL action that executes the actual commands.
+     * @return  An action that performs the analysis and, if isDryRun is TRUE,
+     *          also performs the actions required to bring the data into sync
      *
      * @see     CollectFileInfo
      */
@@ -829,6 +831,9 @@ EXPORT DataPull := MODULE
             STRING      cmd;
         END;
 
+        actionCountLabel := IF(isDryRun, 'DryRun', '') + 'ActionCount';
+        actionLabel := IF(isDryRun, 'DryRun', '') + 'Actions';
+
         info := CollectFileInfo(dali, patterns);
 
         // Remove local superfile relations
@@ -842,11 +847,10 @@ EXPORT DataPull := MODULE
                         SELF.cmd := 'Std.File.RemoveSuperFile(' + QuotedAbsPath(LEFT.superFilePath) + ', ' + QuotedAbsPath(LEFT.subFilePath) + ');'
                     )
             );
-        removeLocalSuperFileRelationsAction := IF
+        removeLocalSuperFileRelationsAction := PARALLEL
             (
-                isDryRun,
-                OUTPUT(removeLocalSuperFileRelationsDryRun, NAMED('DryRunActions'), ALL, EXTEND),
-                NOTHOR(APPLY(removeLocalSuperFileRelations, Std.File.RemoveSuperFile(AbsPath(superFilePath), AbsPath(subFilePath))))
+                OUTPUT(removeLocalSuperFileRelationsDryRun, NAMED(actionLabel), ALL, EXTEND);
+                IF(~isDryRun, NOTHOR(APPLY(removeLocalSuperFileRelations, Std.File.RemoveSuperFile(AbsPath(superFilePath), AbsPath(subFilePath)))));
             );
 
         // Delete unneeded local superfiles
@@ -860,11 +864,10 @@ EXPORT DataPull := MODULE
                         SELF.cmd := 'Std.File.DeleteSuperFile(' + QuotedAbsPath(LEFT.path) + ');'
                     )
             );
-        removeLocalUneededSuperFilesAction := IF
+        removeLocalUneededSuperFilesAction := PARALLEL
             (
-                isDryRun,
-                OUTPUT(removeLocalUneededSuperFilesDryRun, NAMED('DryRunActions'), ALL, EXTEND),
-                NOTHOR(APPLY(removeLocalUneededSuperFiles, Std.File.DeleteSuperFile(AbsPath(path))))
+                OUTPUT(removeLocalUneededSuperFilesDryRun, NAMED(actionLabel), ALL, EXTEND);
+                IF(~isDryRun, NOTHOR(APPLY(removeLocalUneededSuperFiles, Std.File.DeleteSuperFile(AbsPath(path)))));
             );
 
         // Delete unneeded local files
@@ -878,11 +881,10 @@ EXPORT DataPull := MODULE
                         SELF.cmd := 'Std.File.DeleteLogicalFile(' + QuotedAbsPath(LEFT.path) + ');'
                     )
             );
-        removeLocalUneededFilesAction := IF
+        removeLocalUneededFilesAction := PARALLEL
             (
-                isDryRun,
-                OUTPUT(removeLocalUneededFilesDryRun, NAMED('DryRunActions'), ALL, EXTEND),
-                NOTHOR(APPLY(removeLocalUneededFiles, Std.File.DeleteLogicalFile(AbsPath(path))))
+                OUTPUT(removeLocalUneededFilesDryRun, NAMED(actionLabel), ALL, EXTEND);
+                IF(~isDryRun, NOTHOR(APPLY(removeLocalUneededFiles, Std.File.DeleteLogicalFile(AbsPath(path)))));
             );
 
         // Create new local superfiles
@@ -896,11 +898,10 @@ EXPORT DataPull := MODULE
                         SELF.cmd := 'Std.File.CreateSuperFile(' + QuotedAbsPath(LEFT.path) + ');'
                     )
             );
-        createLocalNewSuperFilesAction := IF
+        createLocalNewSuperFilesAction := PARALLEL
             (
-                isDryRun,
-                OUTPUT(createLocalNewSuperFilesDryRun, NAMED('DryRunActions'), ALL, EXTEND),
-                NOTHOR(APPLY(createLocalNewSuperFiles, Std.File.CreateSuperFile(AbsPath(path))))
+                OUTPUT(createLocalNewSuperFilesDryRun, NAMED(actionLabel), ALL, EXTEND);
+                IF(~isDryRun, NOTHOR(APPLY(createLocalNewSuperFiles, Std.File.CreateSuperFile(AbsPath(path)))));
             );
 
         // Copy modified and new files
@@ -914,11 +915,10 @@ EXPORT DataPull := MODULE
                         SELF.cmd := 'Std.File.Copy(' + QuotedAbsPath(LEFT.path) + ', ' + Quoted(MappedCluster(LEFT.sourceCluster)) + ', ' + QuotedAbsPath(LEFT.path) + ', ' + Quoted(dali) + ', allowoverwrite := TRUE, compress := TRUE);'
                     )
             );
-        copyFilesAction := IF
+        copyFilesAction := PARALLEL
             (
-                isDryRun,
-                OUTPUT(copyFilesDryRun, NAMED('DryRunActions'), ALL, EXTEND),
-                NOTHOR(APPLY(copyFiles, Std.File.Copy(AbsPath(path), MappedCluster(sourceCluster), AbsPath(path), dali, allowoverwrite := TRUE, compress := TRUE)))
+                OUTPUT(copyFilesDryRun, NAMED(actionLabel), ALL, EXTEND);
+                IF(~isDryRun, NOTHOR(APPLY(copyFiles, Std.File.Copy(AbsPath(path), MappedCluster(sourceCluster), AbsPath(path), dali, allowoverwrite := TRUE, compress := TRUE))));
             );
 
         // Add new local superfile relations
@@ -932,11 +932,10 @@ EXPORT DataPull := MODULE
                         SELF.cmd := 'Std.File.AddSuperFile(' + QuotedAbsPath(LEFT.superFilePath) + ', ' + QuotedAbsPath(LEFT.subFilePath) + ');'
                     )
             );
-        addLocalSuperFileRelationsAction := IF
+        addLocalSuperFileRelationsAction := PARALLEL
             (
-                isDryRun,
-                OUTPUT(addLocalSuperFileRelationsDryRun, NAMED('DryRunActions'), ALL, EXTEND),
-                NOTHOR(APPLY(addLocalSuperFileRelations, Std.File.AddSuperfile(AbsPath(superFilePath), AbsPath(subFilePath))))
+                OUTPUT(addLocalSuperFileRelationsDryRun, NAMED(actionLabel), ALL, EXTEND);
+                IF(~isDryRun, NOTHOR(APPLY(addLocalSuperFileRelations, Std.File.AddSuperfile(AbsPath(superFilePath), AbsPath(subFilePath)))));
             );
 
         commandCount := COUNT(removeLocalSuperFileRelations)
@@ -948,7 +947,10 @@ EXPORT DataPull := MODULE
 
         allActions := SEQUENTIAL
             (
-                IF(isDryRun, OUTPUT(commandCount, NAMED('DryRunActionCount')));
+                OUTPUT(isDryRun, NAMED('WasDryRun'));
+                OUTPUT(COUNT(info.remoteFiles), NAMED('RemoteFilesExaminedCount'));
+                OUTPUT(COUNT(info.localFiles), NAMED('LocalFilesExaminedCount'));
+                OUTPUT(commandCount, NAMED(actionCountLabel));
                 IF(~isDryRun, Std.File.StartSuperFileTransaction());
                 removeLocalSuperFileRelationsAction;
                 removeLocalUneededSuperFilesAction;
