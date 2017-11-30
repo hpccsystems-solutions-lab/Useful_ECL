@@ -13,7 +13,7 @@ IMPORT Std;
  *
  * @return  An action that performs the removal
  */
-EXPORT RemoveAllSuperFileLogicalFiles(STRING superfilePath, BOOLEAN delete := FALSE) := FUNCTION
+EXPORT RemoveAllSuperFileLogicalFiles(STRING superfilePath, BOOLEAN delete = FALSE) := FUNCTION
     subfilesToDelete := PROJECT
         (
             NOTHOR(Std.File.SuperFileContents(superfilePath, TRUE)),
