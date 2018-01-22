@@ -912,13 +912,13 @@ EXPORT DataPull := MODULE
                 TRANSFORM
                     (
                         ActionDescRec,
-                        SELF.cmd := 'Std.File.Copy(' + QuotedAbsPath(LEFT.path) + ', ' + Quoted(MappedCluster(LEFT.sourceCluster)) + ', ' + QuotedAbsPath(LEFT.path) + ', ' + Quoted(dali) + ', allowoverwrite := TRUE, compress := TRUE);'
+                        SELF.cmd := 'Std.File.Copy(' + QuotedAbsPath(LEFT.path) + ', ' + Quoted(MappedCluster(LEFT.sourceCluster)) + ', ' + QuotedAbsPath(LEFT.path) + ', ' + Quoted(dali) + ', allowoverwrite := TRUE);'
                     )
             );
         copyFilesAction := PARALLEL
             (
                 OUTPUT(copyFilesDryRun, NAMED(actionLabel), ALL, EXTEND);
-                IF(~isDryRun, NOTHOR(APPLY(copyFiles, Std.File.Copy(AbsPath(path), MappedCluster(sourceCluster), AbsPath(path), dali, allowoverwrite := TRUE, compress := TRUE))));
+                IF(~isDryRun, NOTHOR(APPLY(copyFiles, Std.File.Copy(AbsPath(path), MappedCluster(sourceCluster), AbsPath(path), dali, allowoverwrite := TRUE))));
             );
 
         // Add new local superfile relations
