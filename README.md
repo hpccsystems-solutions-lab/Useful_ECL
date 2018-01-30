@@ -14,6 +14,7 @@ well-commented.
 ## Snippet Categories
 
 ### Programming
+* [BlendJoin.ecl](BlendJoin.ecl)
 * [BWR_InversionOfControlDemo.ecl](BWR/BWR_InversionOfControlDemo.ecl)
 * [BWR_ShowPlatformConstants.ecl](BWR/BWR_ShowPlatformConstants.ecl)
 * [NotifyHelper.ecl](NotifyHelper.ecl)
