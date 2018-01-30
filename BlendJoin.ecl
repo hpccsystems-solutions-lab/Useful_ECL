@@ -52,12 +52,12 @@ BlendJoin(lhs, rhs, joinConditionStr, resultRec, joinFlagsStr = '\'\'', prefer =
     // Setup our preferred LEFT and RIGHT
     #DECLARE(prefDS);
     #DECLARE(altDS);
-    #IF(prefer = 'lhs')
-        #SET(prefDS, 'LEFT')
-        #SET(altDS, 'RIGHT')
-    #ELSE
+    #IF(prefer = 'rhs')
         #SET(prefDS, 'RIGHT')
         #SET(altDS, 'LEFT')
+    #ELSE
+        #SET(prefDS, 'LEFT')
+        #SET(altDS, 'RIGHT')
     #END
 
     // Make a SET containing all of the valid attribute names from lhs
