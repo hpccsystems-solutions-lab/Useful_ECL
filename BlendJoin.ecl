@@ -189,7 +189,7 @@ ds2 := DATASET
 
 //-------------------------------------------
 
-res := BlendJoin
+preferLHS := BlendJoin
     (
         NOFOLD(ds1),
         NOFOLD(ds2),
@@ -199,6 +199,26 @@ res := BlendJoin
         prefer := 'lhs'
     );
 
-OUTPUT(res, NAMED('res'));
+OUTPUT(preferLHS, NAMED('BlendJoin_Result_1'));
+
+// id   fname   mname   lname       account_number
+// 1    Dan     S       Camper      1234
+// 2    John            Public      9876
+
+preferRHS := BlendJoin
+    (
+        NOFOLD(ds1),
+        NOFOLD(ds2),
+        'LEFT.id = RIGHT.id',
+        Rec1,
+        joinFlagsStr := 'LEFT OUTER',
+        prefer := 'rhs'
+    );
+
+OUTPUT(preferRHS, NAMED('BlendJoin_Result_2'));
+
+// id   fname   mname   lname       account_number
+// 1    Dan     S       Campbell    1234
+// 2    John            Public      9876
 
 *******************************************************************************/
