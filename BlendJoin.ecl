@@ -199,7 +199,7 @@ preferLHS := BlendJoin
         prefer := 'lhs'
     );
 
-OUTPUT(preferLHS, NAMED('BlendJoin_Result_1'));
+OUTPUT(preferLHS, NAMED('BlendJoin_preferLHS'));
 
 // id   fname   mname   lname       account_number
 // 1    Dan     S       Camper      1234
@@ -215,7 +215,7 @@ preferRHS := BlendJoin
         prefer := 'rhs'
     );
 
-OUTPUT(preferRHS, NAMED('BlendJoin_Result_2'));
+OUTPUT(preferRHS, NAMED('BlendJoin_preferRHS'));
 
 // id   fname   mname   lname       account_number
 // 1    Dan     S       Campbell    1234
