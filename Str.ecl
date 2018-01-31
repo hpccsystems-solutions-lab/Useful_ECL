@@ -16,7 +16,7 @@ EXPORT Str := MODULE
      *
      * @return  The decoded string
      */
-    EXPORT STRING URLDecode(STRING s) := EMBED(C++)
+    EXPORT STRING URLDecode(CONST STRING s) := EMBED(C++)
         #include <string.h>
         #body
         const char HEX2DEC[256] =
@@ -93,7 +93,7 @@ EXPORT Str := MODULE
      *
      * @return  The encoded string
      */
-    EXPORT STRING URLEncode(STRING s) := EMBED(C++)
+    EXPORT STRING URLEncode(CONST STRING s) := EMBED(C++)
         #include <string.h>
         #body
         const char SAFE[256] =
@@ -165,7 +165,7 @@ EXPORT Str := MODULE
      * @see     OnlyPrintableUni
      */
     EXPORT OnlyPrintableStr(STRING str) := FUNCTION
-    	// Note that tab is defined as printable
+        // Note that tab is defined as printable
         nonPrintablePattern := '[^\\x09[\\x20-\\x7E]\\x80[\\x82-\\x8C]\\x8E[\\x91-\\x9C][\\x9E-\\xAC][\\xAE-\\xFF]]';
         printableOnly := REGEXREPLACE(nonPrintablePattern, str , '');
 
@@ -189,5 +189,40 @@ EXPORT Str := MODULE
 
         RETURN printableOnly;
     END;
+
+
+    /**
+     * Test for the presence of a substring within another string.  Supports
+     * case-insensitive searching.  Note that if either the source or target
+     * is an empty string then this function will return FALSE.
+     *
+     * @param   source      The string in which to search; REQUIRED
+     * @param   target      The substring to search for within source; REQUIRED
+     * @param   no_case     If TRUE, ignore case; OPTIONAL, defaults to FALSE
+     *
+     * @return  TRUE if target exists within source, FALSE otherwise
+     */
+    EXPORT BOOLEAN IsSubstring(CONST STRING source, CONST STRING target, BOOLEAN no_case = FALSE) := EMBED(C++)
+        if (lenSource > 0 && lenTarget > 0 && lenTarget <= lenSource)
+        {
+            for (unsigned int i = 0; i < (lenSource - lenTarget + 1); i++)
+            {
+                bool            isMatch = true;
+
+                for (unsigned int j = 0; j < lenTarget && isMatch; j++)
+                {
+                    isMatch = ((no_case ? tolower(source[i+j]) : source[i+j]) == (no_case ? tolower(target[j]) : target[j]));
+                }
+
+                if (isMatch)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+
+    ENDEMBED;
 
 END;
