@@ -92,7 +92,7 @@ expandedFilenameList := PROJECT
             )
     );
 
-filenameList := NORMALIZE
+fullFilenameList := NORMALIZE
     (
         expandedFilenameList,
         LEFT.logicalFiles,
@@ -103,6 +103,8 @@ filenameList := NORMALIZE
                 SELF.isSuperFile := FALSE
             )
     );
+
+filenameList := DEDUP(SORT(fullFilenameList, name), name);
 
 //------------------------------------------------------------------------------
 // Get topology information so we know what names are used for Thor clusters
@@ -280,13 +282,15 @@ analysis := TABLE
             UNSIGNED2   file_part_cnt := COUNT(GROUP),
             DECIMAL9_2  min_part_skew_pct := MIN(GROUP, part_skew_pct),
             DECIMAL9_2  max_part_skew_pct := MAX(GROUP, part_skew_pct),
-            UNSIGNED2   num_high_skew := SUM(GROUP, IF(part_skew_pct >= 200, 1, 0)),
+            UNSIGNED2   num_high_skew := SUM(GROUP, IF(part_skew_pct >= 100, 1, 0)),
             UNSIGNED2   num_low_skew := SUM(GROUP, IF(part_skew_pct <= -70, 1, 0)),
             UNSIGNED2   num_index_parts := SUM(GROUP, IF(part_size_bytes = 32768, 1, 0)) // Kind of a hack
         },
         file_name, owner, cluster_name, file_size_bytes, record_cnt,
         LOCAL
     );
+
+maxFilePartCnt := MAX(analysis, file_part_cnt);
 
 flaggedAnalysis := PROJECT
     (
@@ -299,12 +303,12 @@ flaggedAnalysis := PROJECT
                 },
                 SELF.flagged := MAP
                     (
-                        LEFT.num_index_parts = 1        =>  FALSE, // Don't flag index files stored on Thor
-                        LEFT.record_cnt < 250000        =>  FALSE,
-                        LEFT.max_part_skew_pct >= 300   =>  TRUE,
-                        LEFT.num_high_skew > 1          =>  TRUE,
-                        LEFT.num_low_skew > 1           =>  TRUE,
-                        LEFT.min_part_skew_pct = -100   =>  TRUE,
+                        LEFT.num_index_parts = 1                                =>  FALSE, // Don't flag index files stored on Thor
+                        LEFT.record_cnt < 250000                                =>  FALSE,
+                        LEFT.max_part_skew_pct >= (90 * (maxFilePartCnt - 1))   =>  TRUE,
+                        LEFT.num_high_skew > 1                                  =>  TRUE,
+                        LEFT.num_low_skew > 1                                   =>  TRUE,
+                        LEFT.min_part_skew_pct = -100                           =>  TRUE,
                         FALSE
                     ),
                 SELF := LEFT
