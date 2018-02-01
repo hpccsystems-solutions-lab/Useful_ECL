@@ -80,15 +80,18 @@ initialFilenameList := SOAPCALL
     );
 
 // initialFilenameList may contain superfiles; expand them if possible
-expandedFilenameList := PROJECT
+expandedFilenameList := NOTHOR
     (
-        initialFilenameList,
-        TRANSFORM
+        PROJECT
             (
-                {
-                    DATASET(Std.File.FsLogicalFileNameRecord)   logicalFiles
-                },
-                SELF.logicalFiles := IF(LEFT.isSuperFile, Std.File.SuperFileContents('~' + LEFT.name, TRUE), DATASET([LEFT.name], Std.File.FsLogicalFileNameRecord))
+                GLOBAL(initialFilenameList, FEW),
+                TRANSFORM
+                    (
+                        {
+                            DATASET(Std.File.FsLogicalFileNameRecord)   logicalFiles
+                        },
+                        SELF.logicalFiles := IF(LEFT.isSuperFile, Std.File.SuperFileContents('~' + LEFT.name, TRUE), DATASET([LEFT.name], Std.File.FsLogicalFileNameRecord))
+                    )
             )
     );
 
