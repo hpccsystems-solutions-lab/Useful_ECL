@@ -44,22 +44,27 @@ STRING ESP_USER_PW := '' : STORED('User_Password', FORMAT(SEQUENCE(400), PASSWOR
 // Build up a full URL for the ESP service (same as ECL Watch)
 fullUserInfo := MAP
     (
-        ESP_USER != '' AND ESP_USER_PW != ''    =>  ESP_USER + ':' + ESP_USER_PW + '@',
+        ESP_USER != '' AND ESP_USER_PW != ''    =>  REGEXREPLACE('@', ESP_USER, '%40') + ':' + REGEXREPLACE('@', ESP_USER_PW, '%40') + '@',
         ESP_USER != ''                          =>  ESP_USER + '@',
         ''
     );
 
-serviceURL := REGEXREPLACE('^(https?://)', TRIM(ESP_URL, LEFT, RIGHT), '$1' + TRIM(fullUserInfo, LEFT, RIGHT));
+serviceURL := REGEXREPLACE('^(https?://)', TRIM(ESP_URL, LEFT, RIGHT), '$1' + TRIM(fullUserInfo, LEFT, RIGHT), NOCASE);
 
 //------------------------------------------------------------------------------
 // Get list of input files used by workunit
 //------------------------------------------------------------------------------
-filenameList := SOAPCALL
+FileNameInfo := RECORD
+    STRING      name        {XPATH('Name')};
+    BOOLEAN     isSuperFile {XPATH('IsSuperFile')};
+END;
+
+initialFilenameList := SOAPCALL
     (
         serviceURL + '/WsWorkunits?ver_=1.62', // Verified with platform 6.2.20-1
         'WUInfo',
         {
-            STRING      wuid                        {XPATH('Wuid')} := 'W20171007-065042',
+            STRING      wuid                        {XPATH('Wuid')} := WORKUNIT_ID,
             BOOLEAN     includeExceptions           {XPATH('IncludeExceptions')} := FALSE,
             BOOLEAN     includeGraphs               {XPATH('IncludeGraphs')} := FALSE,
             BOOLEAN     includeSourceFiles          {XPATH('IncludeSourceFiles')} := TRUE,
@@ -70,8 +75,33 @@ filenameList := SOAPCALL
             BOOLEAN     includeApplicationValues    {XPATH('IncludeApplicationValues')} := FALSE,
             BOOLEAN     includeWorkflows            {XPATH('IncludeWorkflows')} := FALSE
         },
-        DATASET({STRING name {XPATH('Name')}}),
+        DATASET(FileNameInfo),
         XPATH('WUInfoResponse/Workunit/SourceFiles/ECLSourceFile')
+    );
+
+// initialFilenameList may contain superfiles; expand them if possible
+expandedFilenameList := PROJECT
+    (
+        initialFilenameList,
+        TRANSFORM
+            (
+                {
+                    DATASET(Std.File.FsLogicalFileNameRecord)   logicalFiles
+                },
+                SELF.logicalFiles := IF(LEFT.isSuperFile, Std.File.SuperFileContents('~' + LEFT.name, TRUE), DATASET([LEFT.name], Std.File.FsLogicalFileNameRecord))
+            )
+    );
+
+filenameList := NORMALIZE
+    (
+        expandedFilenameList,
+        LEFT.logicalFiles,
+        TRANSFORM
+            (
+                FileNameInfo,
+                SELF.name := RIGHT.name,
+                SELF.isSuperFile := FALSE
+            )
     );
 
 //------------------------------------------------------------------------------
