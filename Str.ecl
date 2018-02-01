@@ -196,6 +196,17 @@ EXPORT Str := MODULE
      * case-insensitive searching.  Note that if either the source or target
      * is an empty string then this function will return FALSE.
      *
+     * This routine exists at all because it is surprisingly not straightforward
+     * to implement in ECL.  The standard library contains Std.Str.Contains()
+     * but that doesn't do what you think it should.  Std.Str.Find() does look
+     * for substrings, but it is geared toward finding the nth occurrence  of
+     * a substring and so the syntax is flaky.  Plus, it does not support
+     * a case-insensitive search.
+     *
+     * This is a simple routine and will not perform well when the source string
+     * is large.  At some point it would be smart to employ a Boyer-Moore
+     * algorithm for use with larger strings.
+     *
      * @param   source      The string in which to search; REQUIRED
      * @param   target      The substring to search for within source; REQUIRED
      * @param   no_case     If TRUE, ignore case; OPTIONAL, defaults to FALSE
