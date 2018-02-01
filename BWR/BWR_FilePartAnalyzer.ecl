@@ -304,7 +304,7 @@ flaggedAnalysis := PROJECT
                 SELF.flagged := MAP
                     (
                         LEFT.num_index_parts = 1                                =>  FALSE, // Don't flag index files stored on Thor
-                        LEFT.record_cnt < 250000                                =>  FALSE,
+                        LEFT.file_size_bytes < 2000000                          =>  FALSE, // Don't flag small (<2MB) files
                         LEFT.max_part_skew_pct >= (90 * (maxFilePartCnt - 1))   =>  TRUE,
                         LEFT.num_high_skew > 1                                  =>  TRUE,
                         LEFT.num_low_skew > 1                                   =>  TRUE,
