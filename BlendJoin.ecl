@@ -42,7 +42,7 @@
  * @return  A new dataset that is the result of the JOIN, with a resultRec
  *          RECORD definition
  */
-BlendJoin(lhs, rhs, joinConditionStr, resultRec, joinFlagsStr = '\'\'', prefer = '\'lhs\'') := FUNCTIONMACRO
+EXPORT BlendJoin(lhs, rhs, joinConditionStr, resultRec, joinFlagsStr = '\'\'', prefer = '\'lhs\'') := FUNCTIONMACRO
     LOADXML('<xml/>');
     #EXPORTXML(resultFields, resultRec);
     #EXPORTXML(lhsFields, RECORDOF(lhs));
