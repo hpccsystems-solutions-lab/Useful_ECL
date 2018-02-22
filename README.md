@@ -27,6 +27,7 @@ well-commented.
 * [ScalarArgType.ecl](ScalarArgType.ecl)
 * [Sets.ecl](Sets.ecl)
 * [Str.ecl](Str.ecl)
+* [WholeUpdate.ecl](WholeUpdate.ecl)
 
 ### Configuration
 * [BWR_ShowInstalledPlugins.ecl](BWR/BWR_ShowInstalledPlugins.ecl)
