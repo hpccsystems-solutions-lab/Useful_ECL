@@ -291,31 +291,19 @@ EXPORT BitSet := MODULE
         __result = rtlMalloc(__lenResult);
         memset(__result, 0, __lenResult);
 
-        const unsigned __int64  inputLen = (lenS > 8 ? lenS : 8);
-        const unsigned __int64  extraCharCount = (inputLen % 8 != 0 ? 8 - (inputLen % 8) : 0);
-        const unsigned __int64  newIncomingCharCount = inputLen + extraCharCount;
-        const size32_t          newIncomingByteCount = newIncomingCharCount / 8;
-        char*                   reversedIncomingStr = static_cast<char*>(rtlMalloc(newIncomingCharCount));
-
-        // Reverse incoming data and pad to multiple of 8 characters
-        memset(reversedIncomingStr, '0', newIncomingCharCount);
-        for (unsigned __int64 x = 0; x < lenS; x++)
+        for (size32_t resultBytePos = 0; resultBytePos < bytesToAllocate && resultBytePos * 8 < lenS; resultBytePos++)
         {
-            reversedIncomingStr[x] = s[lenS - x - 1];
-        }
+            __int64 incomingCharOffset = lenS - ((resultBytePos + 1) * 8);
 
-        char*   incomingCharPtr = reversedIncomingStr;
-
-        // Create final result byte-by-byte
-        for (size32_t resultByte = 0; resultByte < newIncomingByteCount; resultByte++)
-        {
-            for (size32_t x = 0; x < 8; x++)
+            for (__int64 x = 7; x >= 0; x--)
             {
-                static_cast<byte*>(__result)[resultByte] |= ((*incomingCharPtr++ == '0' ? 0 : 1) << x);
+                if (incomingCharOffset >= 0)
+                {
+                    static_cast<byte*>(__result)[resultBytePos] |= ((s[incomingCharOffset] == '0' ? 0 : 1) << x);
+                }
+                ++incomingCharOffset;
             }
         }
-
-        rtlFree(reversedIncomingStr);
     ENDEMBED;
 
     /**
