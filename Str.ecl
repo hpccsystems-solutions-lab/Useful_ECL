@@ -5,6 +5,7 @@
  *  URLEncode:          Encodes a URL-encoded string.
  *  OnlyPrintableStr:   Removes non-printable characters from a string.
  *  OnlyPrintableUni:   Removes non-printable characters from a Unicode string.
+ *  IsSubstring:        Test for presence of a substring within another string.
  */
 EXPORT Str := MODULE
 
