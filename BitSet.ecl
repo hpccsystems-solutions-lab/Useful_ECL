@@ -342,6 +342,7 @@ EXPORT BitSet := MODULE
      * @see     New
      * @see     NewFromIntValue
      * @see     NewFromStrValue
+     * @see     BitsSetPositions
      */
     EXPORT BitSet_t NewFromBitPositions(DATASET(BitPositionsRec) positions, BitCapacity_t bit_capacity = 0) := EMBED(C++)
         #option pure;
@@ -691,6 +692,8 @@ EXPORT BitSet := MODULE
      * @return  A new DATASET(BitPositionsRec) containing the zero-based
      *          positions of all set bits within the bitset.  If no bits are
      *          set then the resulting dataset will be empty.
+     *
+     * @see     NewFromBitPositions
      */
     EXPORT STREAMED DATASET(BitPositionsRec) BitsSetPositions(CONST BitSet_t b) := EMBED(C++)
         #option pure;
