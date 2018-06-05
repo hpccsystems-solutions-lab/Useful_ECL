@@ -47,11 +47,12 @@
  *      BitSet_t ShiftLeft(CONST BitSet_t b, BitCapacity_t num_bits = 1);
  *      BitSet_t ShiftRight(CONST BitSet_t b, BitCapacity_t num_bits = 1);
  *
- *      // Combining two bitsets
+ *      // Bitwise operations
  *      BitSet_t BitwiseAND(CONST BitSet_t b1, CONST BitSet_t b2);
  *      BitSet_t BitwiseOR(CONST BitSet_t b1, CONST BitSet_t b2);
  *      BitSet_t BitwiseXOR(CONST BitSet_t b1, CONST BitSet_t b2);
  *      BitSet_t BitwiseNOT(CONST BitSet_t b);
+ *      BitSet_t BitwiseDIFF(CONST BitSet_t b1, CONST BitSet_t b2);
  *
  *      // Testing bits, individually and as a group
  *      BOOLEAN TestBit(CONST BitSet_t b, BitPosition_t position);
@@ -293,9 +294,9 @@ EXPORT BitSet := MODULE
 
         for (size32_t resultBytePos = 0; resultBytePos < bytesToAllocate && resultBytePos * 8 < lenS; resultBytePos++)
         {
-            __int64 incomingCharOffset = lenS - ((resultBytePos + 1) * 8);
+            __int64 incomingCharOffset = static_cast<__int64>(lenS) - static_cast<__int64>((resultBytePos + 1) * 8);
 
-            for (__int64 x = 7; x >= 0; x--)
+            for (int x = 7; x >= 0; x--)
             {
                 if (incomingCharOffset >= 0)
                 {
@@ -929,5 +930,27 @@ EXPORT BitSet := MODULE
             *outPtr++ = ~(static_cast<const byte*>(b)[x]);
         }
     ENDEMBED;
+
+    /**
+     * Perform a bitwise difference operation on two bitsets.  The resulting
+     * bitset will contain set bits that correspond to bits that are set in
+     * <b1> but not set in <b2>.  This is the equivalent of this function:
+     *
+     *      b1 & ~b2
+     *
+     * Example:  1101 & ~1011 = 0100
+     *
+     * @param   b1          A bitset; REQUIRED
+     * @param   b2          A bitset; REQUIRED
+     *
+     * @return  A new BitSet_t containing the result of a bitwise difference
+     *          operation between <b1> and <b2>.  The result will The new bitset will be as large as the
+     *          larger of <b1> and <b2>.
+     *
+     * @see     BitwiseAND
+     * @see     BitwiseOR
+     * @see     BitwiseNOT
+     */
+    EXPORT BitSet_t BitwiseDIFF(CONST BitSet_t b1, CONST BitSet_t b2) := BitwiseAND(b1, BitwiseNOT(b2));
 
 END;
