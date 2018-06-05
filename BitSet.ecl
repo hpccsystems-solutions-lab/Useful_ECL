@@ -36,10 +36,10 @@
  *      LITTLE_ENDIAN UNSIGNED8 AsUnsigned(CONST BitSet_t b);
  *
  *      // Creating new bitsets
- *      BitSet_t New(BitCapacity_t num_bits);
- *      BitSet_t NewFromIntValue(LITTLE_ENDIAN UNSIGNED8 n, BitCapacity_t num_bits = 64);
- *      BitSet_t NewFromStrValue(STRING n, BitCapacity_t num_bits = 0);
- *      BitSet_t NewFromBitPositions(DATASET(BitPositionsRec) positions, BitCapacity_t num_bits = 0);
+ *      BitSet_t New(BitCapacity_t bit_capacity);
+ *      BitSet_t NewFromIntValue(LITTLE_ENDIAN UNSIGNED8 n, BitCapacity_t bit_capacity = 64);
+ *      BitSet_t NewFromStrValue(STRING n, BitCapacity_t bit_capacity = 0);
+ *      BitSet_t NewFromBitPositions(DATASET(BitPositionsRec) positions, BitCapacity_t bit_capacity = 0);
  *
  *      // Manipulating single bits
  *      BitSet_t SetAllBits(CONST BitSet_t b, BOOLEAN on);
@@ -215,8 +215,8 @@ EXPORT BitSet := MODULE
     /**
      * Create a new bitset.
      *
-     * @param   num_bits    The maximum number of bits needed in the new
-     *                      bitset; REQUIRED
+     * @param   bit_capacity    The maximum number of bits needed in the new
+     *                          bitset; REQUIRED
      *
      * @return  A new BitSet_t value that can track at least the number of bits
      *          cited in the argument.  The actual number of bits within the
@@ -227,10 +227,10 @@ EXPORT BitSet := MODULE
      * @see     NewFromStrValue
      * @see     NewFromBitPositions
      */
-    EXPORT BitSet_t New(BitCapacity_t num_bits) := EMBED(C++)
+    EXPORT BitSet_t New(BitCapacity_t bit_capacity) := EMBED(C++)
         #option pure;
 
-        const size32_t  bytesNeeded = num_bits / 8 + (num_bits % 8 != 0 ? 1 : 0);
+        const size32_t  bytesNeeded = bit_capacity / 8 + (bit_capacity % 8 != 0 ? 1 : 0);
 
         // Create empty result bitset
         __lenResult = bytesNeeded;
@@ -240,27 +240,27 @@ EXPORT BitSet := MODULE
 
     /**
      * Create a new bitset initialized with an integer value.  The optional
-     * num_bits argument provides control over how many bits are actually
+     * <bit_capacity> argument provides control over how many bits are actually
      * allocated in the bitset.
      *
-     * @param   n           The integer value containing the bits that will
-     *                      be copied into the new bitset; REQUIRED
-     * @param   num_bits    The maximum number of bits needed in the new
-     *                      bitset; OPTIONAL, defaults to 64
+     * @param   n               The integer value containing the bits that will
+     *                          be copied into the new bitset; REQUIRED
+     * @param   bit_capacity    The maximum number of bits needed in the new
+     *                          bitset; OPTIONAL, defaults to 64
      *
      * @return  A new BitSet_t value preinitialized with the bits taken from
-     *          the <n> argument.  If <num_bits> is smaller the number of bits
-     *          needed to represent <n> then only first few bytes of <n> will
-     *          be used to seed the new bitset.
+     *          the <n> argument.  If <bit_capacity> is smaller the number of
+     *          bits needed to represent <n> then only first few bytes of <n>
+     *          will be used to seed the new bitset.
      *
      * @see     New
      * @see     NewFromStrValue
      * @see     NewFromBitPositions
      */
-    EXPORT BitSet_t NewFromIntValue(LITTLE_ENDIAN UNSIGNED8 n, BitCapacity_t num_bits = 64) := EMBED(C++)
+    EXPORT BitSet_t NewFromIntValue(LITTLE_ENDIAN UNSIGNED8 n, BitCapacity_t bit_capacity = 64) := EMBED(C++)
         #option pure
 
-        const size32_t  bytesNeeded = num_bits / 8 + (num_bits % 8 != 0 ? 1 : 0);
+        const size32_t  bytesNeeded = bit_capacity / 8 + (bit_capacity % 8 != 0 ? 1 : 0);
         const size32_t  numBytesToCopy = (bytesNeeded < sizeof(n) ? bytesNeeded : sizeof(n));
 
         // Create empty result bitset
@@ -275,27 +275,27 @@ EXPORT BitSet := MODULE
 
     /**
      * Create a new bitset initialized with a binary string value.  The optional
-     * num_bits argument provides control over how many bits are actually
+     * <bit_capacity> argument provides control over how many bits are actually
      * allocated in the bitset.
      *
-     * @param   s           A STRING containing only ones and zeros; REQUIRED
-     * @param   num_bits    The maximum number of bits needed in the new
-     *                      bitset; use zero to indicate the number of bits
-     *                      should be derived from the length of <s>; OPTIONAL,
-     *                      defaults to zero
+     * @param   s               A STRING containing only ones and zeros; REQUIRED
+     * @param   bit_capacity    The maximum number of bits needed in the new
+     *                          bitset; use zero to indicate the number of bits
+     *                          should be derived from the length of <s>; OPTIONAL,
+     *                          defaults to zero
      *
      * @return  A new BitSet_t value preinitialized with the characters read
-     *          from the <s> argument.  If <num_bits> is smaller than the
-     *          number of characters in <s> then <num_bits> will be ignored.
+     *          from the <s> argument.  If <bit_capacity> is smaller than the
+     *          number of characters in <s> then <bit_capacity> will be ignored.
      *
      * @see     New
      * @see     NewFromIntValue
      * @see     NewFromBitPositions
      */
-    EXPORT BitSet_t NewFromStrValue(STRING s, BitCapacity_t num_bits = 0) := EMBED(C++)
+    EXPORT BitSet_t NewFromStrValue(STRING s, BitCapacity_t bit_capacity = 0) := EMBED(C++)
         #option pure;
 
-        const unsigned __int64  actualBitCount = (lenS > num_bits ? lenS : num_bits);
+        const unsigned __int64  actualBitCount = (lenS > bit_capacity ? lenS : bit_capacity);
         const size32_t          bytesToAllocate = actualBitCount / 8 + (actualBitCount % 8 != 0 ? 1 : 0);
 
         // Create empty result bitset
@@ -320,20 +320,20 @@ EXPORT BitSet := MODULE
 
     /**
      * Create a new bitset initialized from a list of bit positions.  The
-     * num_bits argument provides control over how many bits are actually
+     * <bit_capacity> argument provides control over how many bits are actually
      * allocated in the bitset.
      *
-     * @param   positions   A DATASET(BitPositionsRec) containing the
-     *                      zero-based bit positions to set in the
-     *                      new bitset; REQUIRED
-     * @param   num_bits    The maximum number of bits needed in the new
-     *                      bitset; use zero to indicate the number of bits
-     *                      should be derived from the highest bit position
-     *                      found within <positions>; OPTIONAL,
-     *                      defaults to zero
+     * @param   positions       A DATASET(BitPositionsRec) containing the
+     *                          zero-based bit positions to set in the
+     *                          new bitset; REQUIRED
+     * @param   bit_capacity    The maximum number of bits needed in the new
+     *                          bitset; use zero to indicate the number of bits
+     *                          should be derived from the highest bit position
+     *                          found within <positions>; OPTIONAL,
+     *                          defaults to zero
      *
      * @return  A new BitSet_t value with bits set from the positions cited
-     *          with the <positions> argument.  If <num_bits> is smaller than
+     *          with the <positions> argument.  If <bit_capacity> is smaller than
      *          highest position referenced in <positions> then it will be
      *          ignored.
      *
@@ -341,7 +341,7 @@ EXPORT BitSet := MODULE
      * @see     NewFromIntValue
      * @see     NewFromStrValue
      */
-    EXPORT BitSet_t NewFromBitPositions(DATASET(BitPositionsRec) positions, BitCapacity_t num_bits = 0) := EMBED(C++)
+    EXPORT BitSet_t NewFromBitPositions(DATASET(BitPositionsRec) positions, BitCapacity_t bit_capacity = 0) := EMBED(C++)
         #option pure;
 
         const size32_t          elementSize = 6;
@@ -360,7 +360,7 @@ EXPORT BitSet := MODULE
             }
         }
 
-        const unsigned __int64  actualBitCount = (highestPosition > num_bits ? highestPosition : num_bits);
+        const unsigned __int64  actualBitCount = (highestPosition > bit_capacity ? highestPosition : bit_capacity);
         const size32_t          bytesToAllocate = actualBitCount / 8 + (actualBitCount % 8 != 0 ? 1 : 0);
 
         // Create empty result bitset
