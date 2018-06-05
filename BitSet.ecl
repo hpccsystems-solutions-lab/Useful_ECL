@@ -17,6 +17,9 @@
  *      BitCapacity_t := UNSIGNED6;
  *      BitPosition_t := UNSIGNED6;
  *
+ *      // Record definitions
+ *      BitPositionsRec := {BitPosition_t bitPos};
+ *
  *      // Max values
  *      MAX_FOOTPRINT := (Footprint_t)-1;
  *      MAX_BIT_CAPACITY := (BitCapacity_t)-1;
@@ -36,6 +39,7 @@
  *      BitSet_t New(BitCapacity_t num_bits);
  *      BitSet_t NewFromIntValue(LITTLE_ENDIAN UNSIGNED8 n, BitCapacity_t num_bits = 64);
  *      BitSet_t NewFromStrValue(STRING n, BitCapacity_t num_bits = 0);
+ *      BitSet_t NewFromBitPositions(DATASET(BitPositionsRec) positions, BitCapacity_t num_bits = 0);
  *
  *      // Manipulating single bits
  *      BitSet_t SetAllBits(CONST BitSet_t b, BOOLEAN on);
@@ -62,7 +66,7 @@
  *      BOOLEAN TestAllBitsSet(CONST BitSet_t b);
  *      BOOLEAN TestBitSetsEqual(CONST BitSet_t b1, CONST BitSet_t b2);
  *      BitCapacity_t CountBitsSet(CONST BitSet_t b);
-
+ *      DATASET(BitPositionsRec) BitsSetPositions(CONST BitSet_t b);
  */
 
 EXPORT BitSet := MODULE
@@ -72,6 +76,11 @@ EXPORT BitSet := MODULE
     EXPORT Footprint_t := UNSIGNED4;
     EXPORT BitCapacity_t := UNSIGNED6;
     EXPORT BitPosition_t := UNSIGNED6;
+
+    // Record defining bit positions
+    EXPORT BitPositionsRec := RECORD
+        BitPosition_t   bitPos;
+    END;
 
     // Maximum number of bytes a single bitset can consume
     EXPORT MAX_FOOTPRINT := (Footprint_t)-1;
@@ -216,6 +225,7 @@ EXPORT BitSet := MODULE
      *
      * @see     NewFromIntValue
      * @see     NewFromStrValue
+     * @see     NewFromBitPositions
      */
     EXPORT BitSet_t New(BitCapacity_t num_bits) := EMBED(C++)
         #option pure;
@@ -245,6 +255,7 @@ EXPORT BitSet := MODULE
      *
      * @see     New
      * @see     NewFromStrValue
+     * @see     NewFromBitPositions
      */
     EXPORT BitSet_t NewFromIntValue(LITTLE_ENDIAN UNSIGNED8 n, BitCapacity_t num_bits = 64) := EMBED(C++)
         #option pure
@@ -274,12 +285,12 @@ EXPORT BitSet := MODULE
      *                      defaults to zero
      *
      * @return  A new BitSet_t value preinitialized with the characters read
-     *          from the <s> argument.  If <num_bits> is smaller the number of
-     *          characters in <s> then only first few characters of <s> will
-     *          be used to seed the new bitset.
+     *          from the <s> argument.  If <num_bits> is smaller than the
+     *          number of characters in <s> then <num_bits> will be ignored.
      *
      * @see     New
      * @see     NewFromIntValue
+     * @see     NewFromBitPositions
      */
     EXPORT BitSet_t NewFromStrValue(STRING s, BitCapacity_t num_bits = 0) := EMBED(C++)
         #option pure;
@@ -304,6 +315,68 @@ EXPORT BitSet := MODULE
                 }
                 ++incomingCharOffset;
             }
+        }
+    ENDEMBED;
+
+    /**
+     * Create a new bitset initialized from a list of bit positions.  The
+     * num_bits argument provides control over how many bits are actually
+     * allocated in the bitset.
+     *
+     * @param   positions   A DATASET(BitPositionsRec) containing the
+     *                      zero-based bit positions to set in the
+     *                      new bitset; REQUIRED
+     * @param   num_bits    The maximum number of bits needed in the new
+     *                      bitset; use zero to indicate the number of bits
+     *                      should be derived from the highest bit position
+     *                      found within <positions>; OPTIONAL,
+     *                      defaults to zero
+     *
+     * @return  A new BitSet_t value with bits set from the positions cited
+     *          with the <positions> argument.  If <num_bits> is smaller than
+     *          highest position referenced in <positions> then it will be
+     *          ignored.
+     *
+     * @see     New
+     * @see     NewFromIntValue
+     * @see     NewFromStrValue
+     */
+    EXPORT BitSet_t NewFromBitPositions(DATASET(BitPositionsRec) positions, BitCapacity_t num_bits = 0) := EMBED(C++)
+        #option pure;
+
+        const size32_t          elementSize = 6;
+        const size32_t          numElements = lenPositions / elementSize;
+        unsigned __int64        aPosition = 0;
+        size32_t                highestPosition = 0;
+
+        // Find the highest referenced position
+        for (size32_t x = 0; x < numElements; x++)
+        {
+            memcpy(&aPosition, static_cast<const byte*>(positions) + (x * elementSize), elementSize);
+
+            if (aPosition > highestPosition)
+            {
+                highestPosition = aPosition;
+            }
+        }
+
+        const unsigned __int64  actualBitCount = (highestPosition > num_bits ? highestPosition : num_bits);
+        const size32_t          bytesToAllocate = actualBitCount / 8 + (actualBitCount % 8 != 0 ? 1 : 0);
+
+        // Create empty result bitset
+        __lenResult = bytesToAllocate;
+        __result = rtlMalloc(__lenResult);
+        memset(__result, 0, __lenResult);
+
+        for (size32_t x = 0; x < numElements; x++)
+        {
+            memcpy(&aPosition, static_cast<const byte*>(positions) + (x * elementSize), elementSize);
+
+            size32_t    bytePos = aPosition / 8;
+            size32_t    bitPos = aPosition % 8;
+            byte        newValue = 1 << bitPos;
+
+            static_cast<byte*>(__result)[bytePos] |= newValue;
         }
     ENDEMBED;
 
@@ -606,6 +679,99 @@ EXPORT BitSet := MODULE
         }
 
         return numBitsSet;
+    ENDEMBED;
+
+    /**
+     * Collect the positions of all set bits within a bitset.
+     *
+     * @param   b           A bitset; REQUIRED
+     *
+     * @return  A new DATASET(BitPositionsRec) containing the zero-based
+     *          positions of all set bits within the bitset.  If no bits are
+     *          set then the resulting dataset will be empty.
+     */
+    EXPORT STREAMED DATASET(BitPositionsRec) BitsSetPositions(CONST BitSet_t b) := EMBED(C++)
+        #option pure;
+
+        class StreamDataset : public RtlCInterface, implements IRowStream
+        {
+            public:
+
+                StreamDataset(IEngineRowAllocator* _resultAllocator, size32_t _dataLength, const void* _dataPtr)
+                    : resultAllocator(_resultAllocator), dataLength(_dataLength), dataPtr(static_cast<const byte*>(_dataPtr))
+                {
+                    isStopped = false;
+                    currentByte = 0;
+                    currentBit = 0;
+                }
+
+                RTLIMPLEMENT_IINTERFACE
+
+                virtual const void* nextRow()
+                {
+                    if (isStopped)
+                    {
+                        return NULL;
+                    }
+
+                    // Find next set bit
+                    while (currentByte < dataLength)
+                    {
+                        while (currentBit < 8)
+                        {
+                            byte    testValue = 1 << currentBit;
+
+                            if ((dataPtr[currentByte] & testValue) == testValue)
+                            {
+                                RtlDynamicRowBuilder    rowBuilder(resultAllocator);
+                                unsigned int            len = 6;
+                                byte*                   row = rowBuilder.ensureCapacity(len, NULL);
+                                unsigned __int64        position = currentByte * 8 + currentBit;
+
+                                // Copy the position to the output record
+                                memcpy(row, &position, len);
+
+                                // Increment bit position for next call
+                                ++currentBit;
+
+                                return rowBuilder.finalizeRowClear(len);
+                            }
+                            else
+                            {
+                                ++currentBit;
+                            }
+                        }
+
+                        currentBit = 0;
+                        ++currentByte;
+                    }
+
+                    isStopped = true;
+
+                    return NULL;
+                }
+                virtual void stop()
+                {
+                    isStopped = true;
+                }
+
+
+            protected:
+
+                Linked<IEngineRowAllocator> resultAllocator;
+
+            private:
+
+                size32_t                    dataLength;
+                const byte*                 dataPtr;
+                bool                        isStopped;
+                size32_t                    currentByte;
+                size32_t                    currentBit;
+        };
+
+        #body
+
+        return new StreamDataset(_resultAllocator, lenB, b);
     ENDEMBED;
 
     /**
