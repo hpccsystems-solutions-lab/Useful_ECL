@@ -1112,8 +1112,8 @@ EXPORT BitSet := MODULE
      * @param   b2          A bitset; REQUIRED
      *
      * @return  A new BitSet_t containing the result of a bitwise difference
-     *          operation between <b1> and <b2>.  The result will The new bitset will be as large as the
-     *          larger of <b1> and <b2>.
+     *          operation between <b1> and <b2>.  The result will be as large
+     *          as the larger of <b1> and <b2>.
      *
      * @see     BitwiseAND
      * @see     BitwiseOR
