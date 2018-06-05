@@ -1,7 +1,7 @@
 /**
  * The BitSet module provides structures and algorithms for creating and
- * manipulating bit fields (called bitsets here) of arbitrary size
- * (up to 4GB of RAM).  A bit field is stored in a compact manner, with
+ * manipulating bit arrays (called bitsets here) of arbitrary size
+ * (up to 4GB of RAM).  A bitset is stored in a compact manner, with
  * eight bits represented per byte.
  *
  * Bits within a bitset are referenced with a zero-based offset.  The first
