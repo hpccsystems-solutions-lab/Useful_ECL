@@ -65,6 +65,8 @@
  *      BOOLEAN TestNoBitsSet(CONST BitSet_t b);
  *      BOOLEAN TestAllBitsSet(CONST BitSet_t b);
  *      BOOLEAN TestBitSetsEqual(CONST BitSet_t b1, CONST BitSet_t b2);
+ *
+ *      // Inspection
  *      BitCapacity_t CountBitsSet(CONST BitSet_t b);
  *      DATASET(BitPositionsRec) BitsSetPositions(CONST BitSet_t b);
  */
