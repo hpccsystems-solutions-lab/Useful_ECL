@@ -809,7 +809,10 @@ EXPORT DataPull := MODULE
      * @param   isDryRun        If TRUE, only information about the analysis
      *                          and commands that would be executed are shown
      *                          as results; if FALSE then the commands are also
-     *                          executed; defaults to TRUE for safety
+     *                          executed; OPTIONAL, defaults to TRUE for safety
+     * @param   debugOutput     If TRUE, emit datasets representing the internal
+     *                          state of the collection and analysis; OPTIONAL,
+     *                          defaults to FALSE
      *
      * @return  An action that performs the analysis and, if isDryRun is TRUE,
      *          also performs the actions required to bring the data into sync
@@ -819,7 +822,8 @@ EXPORT DataPull := MODULE
     EXPORT Go(STRING dali,
               SET OF STRING patterns = DEFAULT_FILENAME_PATTERNS,
               DATASET(ClusterMapRec) clusterMap = DATASET([], ClusterMapRec),
-              BOOLEAN isDryRun = TRUE) := FUNCTION
+              BOOLEAN isDryRun = TRUE,
+              BOOLEAN debugOutput = FALSE) := FUNCTION
 
         clusterMapDict := DICTIONARY(clusterMap, {remoteCluster => localCluster});
         MappedCluster(STRING clusterName) := FUNCTION
@@ -948,6 +952,18 @@ EXPORT DataPull := MODULE
         allActions := SEQUENTIAL
             (
                 OUTPUT(isDryRun, NAMED('WasDryRun'));
+                IF  (
+                        debugOutput,
+                        SEQUENTIAL
+                            (
+                                OUTPUT(info.remoteFiles, NAMED('DEBUG_remoteFiles'));
+                                OUTPUT(info.remoteSuperFileRelationships, NAMED('DEBUG_remoteSuperFileRelationships'));
+                                OUTPUT(info.localFiles, NAMED('DEBUG_localFiles'));
+                                OUTPUT(info.localSuperFileRelationships, NAMED('DEBUG_localSuperFileRelationships'));
+                                OUTPUT(info.fileActions, NAMED('DEBUG_fileActions'));
+                                OUTPUT(info.superFileActions, NAMED('DEBUG_superFileActions'));
+                            )
+                    );
                 OUTPUT(COUNT(info.remoteFiles), NAMED('RemoteFilesExaminedCount'));
                 OUTPUT(COUNT(info.localFiles), NAMED('LocalFilesExaminedCount'));
                 OUTPUT(commandCount, NAMED(actionCountLabel));
