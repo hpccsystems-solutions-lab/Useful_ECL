@@ -623,7 +623,7 @@ EXPORT DataPull := MODULE
                 TRANSFORM
                     (
                         SuperFileActionRec,
-                        SELF.syncAction := SYNC_ACTION.DELETE_SUPERFILE,
+                        SELF.syncAction := SYNC_ACTION.DELETE_FILE,
                         SELF := RIGHT
                     ),
                 RIGHT ONLY
