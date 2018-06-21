@@ -795,24 +795,30 @@ EXPORT DataPull := MODULE
      * system or just output the commands that will be executed for review
      * purposes.
      *
-     * @param   dali            The IP address of the remote Dali
-     * @param   patterns        Set of filename patterns that will be used
-     *                          to gather files to analyze; OPTIONAL, defaults
-     *                          to ['*'] which indicates all files
-     * @param   clusterMap      DATASET(ClusterMapRec) containing remote and
-     *                          local cluster names; this is used when a remote
-     *                          file needs to be copied but the cluster on
-     *                          which the remote file lives is named differently
-     *                          than the destination cluster (e.g. 'thor' versus
-     *                          'mythor'); OPTIONAL, defaults to an empty
-     *                          dataset
-     * @param   isDryRun        If TRUE, only information about the analysis
-     *                          and commands that would be executed are shown
-     *                          as results; if FALSE then the commands are also
-     *                          executed; OPTIONAL, defaults to TRUE for safety
-     * @param   debugOutput     If TRUE, emit datasets representing the internal
-     *                          state of the collection and analysis; OPTIONAL,
-     *                          defaults to FALSE
+     * @param   dali                The IP address of the remote Dali
+     * @param   patterns            Set of filename patterns that will be used
+     *                              to gather files to analyze; OPTIONAL,
+     *                              defaults to ['*'] which indicates all files
+     * @param   clusterMap          DATASET(ClusterMapRec) containing remote
+     *                              and local cluster names; this is used when
+     *                              a remote file needs to be copied but the
+     *                              cluster on which the remote file lives is
+     *                              named differently than the destination
+     *                              cluster (e.g. 'thor' versus 'mythor');
+     *                              OPTIONAL, defaults to an empty dataset
+     * @param   forceCompression    If TRUE, all copied files will be created
+     *                              compressed; if TRUE then the destination
+     *                              file will be compressed only if the source
+     *                              file is compressed; OPTIONAL, defaults
+     *                              to FALSE
+     * @param   isDryRun            If TRUE, only information about the analysis
+     *                              and commands that would be executed are
+     *                              shown as results; if FALSE then the
+     *                              commands are also executed; OPTIONAL,
+     *                              defaults to TRUE for safety
+     * @param   debugOutput         If TRUE, emit datasets representing the
+     *                              internal state of the collection and
+     *                              analysis; OPTIONAL, defaults to FALSE
      *
      * @return  An action that performs the analysis and, if isDryRun is TRUE,
      *          also performs the actions required to bring the data into sync
@@ -822,6 +828,7 @@ EXPORT DataPull := MODULE
     EXPORT Go(STRING dali,
               SET OF STRING patterns = DEFAULT_FILENAME_PATTERNS,
               DATASET(ClusterMapRec) clusterMap = DATASET([], ClusterMapRec),
+              BOOLEAN forceCompression = FALSE,
               BOOLEAN isDryRun = TRUE,
               BOOLEAN debugOutput = FALSE) := FUNCTION
 
@@ -916,13 +923,17 @@ EXPORT DataPull := MODULE
                 TRANSFORM
                     (
                         ActionDescRec,
-                        SELF.cmd := 'Std.File.Copy(' + QuotedAbsPath(LEFT.path) + ', ' + Quoted(MappedCluster(LEFT.sourceCluster)) + ', ' + QuotedAbsPath(LEFT.path) + ', ' + Quoted(dali) + ', allowoverwrite := TRUE);'
+                        SELF.cmd := 'Std.File.Copy(' + QuotedAbsPath(LEFT.path) + ', ' + Quoted(MappedCluster(LEFT.sourceCluster)) + ', ' + QuotedAbsPath(LEFT.path) + ', ' + Quoted(dali) + ', allowoverwrite := TRUE' + IF(forceCompression, ', compress := TRUE', '') + ');'
                     )
             );
         copyFilesAction := PARALLEL
             (
                 OUTPUT(copyFilesDryRun, NAMED(actionLabel), ALL, EXTEND);
-                IF(~isDryRun, NOTHOR(APPLY(copyFiles, Std.File.Copy(AbsPath(path), MappedCluster(sourceCluster), AbsPath(path), dali, allowoverwrite := TRUE))));
+                MAP
+                    (
+                        ~isDryRun AND forceCompression  =>  NOTHOR(APPLY(copyFiles, Std.File.Copy(AbsPath(path), MappedCluster(sourceCluster), AbsPath(path), dali, allowoverwrite := TRUE, compress := TRUE))),
+                        ~isDryRun AND ~forceCompression =>  NOTHOR(APPLY(copyFiles, Std.File.Copy(AbsPath(path), MappedCluster(sourceCluster), AbsPath(path), dali, allowoverwrite := TRUE)))
+                    );
             );
 
         // Add new local superfile relations
