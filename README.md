@@ -28,6 +28,7 @@ well-commented.
 * [ScalarArgType.ecl](ScalarArgType.ecl)
 * [Sets.ecl](Sets.ecl)
 * [Str.ecl](Str.ecl)
+* [UUID.ecl](UUID.ecl)
 * [WholeUpdate.ecl](WholeUpdate.ecl)
 
 ### Configuration
