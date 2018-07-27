@@ -92,6 +92,7 @@ EXPORT UUID := MODULE
      */
     EXPORT UUIDBin_t NullValueBin() := EMBED(c++)
         #option library uuid
+        #option pure
         #include <uuid/uuid.h>
 
         #body
@@ -111,6 +112,7 @@ EXPORT UUID := MODULE
      */
     EXPORT UUIDStr_t NullValueStr() := EMBED(c++)
         #option library uuid
+        #option pure
         #include <uuid/uuid.h>
 
         #body
@@ -134,6 +136,7 @@ EXPORT UUID := MODULE
      */
     EXPORT BOOLEAN IsNullValueBin(CONST UUIDBin_t uuid) := EMBED(c++)
         #option library uuid
+        #option pure
         #include <uuid/uuid.h>
 
         #body
@@ -152,6 +155,7 @@ EXPORT UUID := MODULE
      */
     EXPORT BOOLEAN IsNullValueStr(CONST UUIDStr_t uuid) := EMBED(c++)
         #option library uuid
+        #option pure
         #include <uuid/uuid.h>
 
         #body
@@ -178,6 +182,7 @@ EXPORT UUID := MODULE
      */
     EXPORT UUIDStr_t AsString(CONST UUIDBin_t uuid) := EMBED(c++)
         #option library uuid
+        #option pure
         #include <uuid/uuid.h>
 
         #body
@@ -200,6 +205,7 @@ EXPORT UUID := MODULE
      */
     EXPORT UUIDBin_t AsBinary(CONST UUIDStr_t uuid) := EMBED(c++)
         #option library uuid
+        #option pure
         #include <uuid/uuid.h>
 
         #body
