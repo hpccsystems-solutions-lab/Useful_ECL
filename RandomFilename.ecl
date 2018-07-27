@@ -8,7 +8,7 @@
  * @return  A string
  */
 EXPORT STRING RandomFilename(UNSIGNED2 len) := EMBED(C++)
-    #option action
+    #option volatile
 
     const char  letters[] = "abcdefghijklmnopqrstuvwxyz0123456789";
 
