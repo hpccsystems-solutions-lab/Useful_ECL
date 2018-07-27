@@ -13,9 +13,10 @@
  * The code here relies on libuuid being installed on all HPCC nodes that will
  * execute this code.  For completeness, that means all Thor slave nodes, all
  * Roxie nodes, and the hthor node.  Both the library and header file for
- * UUID need to be installed on the eclccserver as well, so that code compiles
- * correctly.  This code assumes that the header is located at <uuid/uuid.h>,
- * which is accurate for Ubuntu but may vary with other distributions.
+ * UUID need to be installed on the eclccserver node as well, so that code
+ * compiles correctly.  This code assumes that the header is located at
+ * <uuid/uuid.h>, which is accurate for Ubuntu but may vary with other
+ * distributions.
  *
  * Exported data types:
  *
