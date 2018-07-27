@@ -5,18 +5,17 @@
  *      https://en.wikipedia.org/wiki/Universally_unique_identifier
  *
  * UUIDs can be represented in either a compact 16-byte form or a human-readable
- * 36-character string.  There are separate functions for creating and testing
- * UUID values in binary or string forms, denoted by a 'Bin' or 'Str' suffix.
- * A pair of functions for converting binary representations to string and
- * vice-versa are also included.
+ * (and somewhat more portable) 36-character string.  There are separate
+ * functions for creating and testing UUID values in binary or string forms,
+ * denoted by a 'Bin' or 'Str' suffix.  A pair of functions for converting
+ * binary representations to string and vice-versa are also included.
  *
  * The code here relies on libuuid being installed on all HPCC nodes that will
- * execute this code.  For completeness, that means all Thor slave nodes, all
- * Roxie nodes, and the hthor node.  Both the library and header file for
- * UUID need to be installed on the eclccserver node as well, so that code
- * compiles correctly.  This code assumes that the header is located at
- * <uuid/uuid.h>, which is accurate for Ubuntu but may vary with other
- * distributions.
+ * execute it.  For completeness, that means all Thor slave nodes, all Roxie
+ * nodes, and the hthor node.  Both the library and header file for UUID need
+ * to be installed on the eclccserver node as well, so that code compiles
+ * correctly.  This code assumes that the header is located at <uuid/uuid.h>,
+ * which is accurate for Ubuntu but may vary with other distributions.
  *
  * Exported data types:
  *
