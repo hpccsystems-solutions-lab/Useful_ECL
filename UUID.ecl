@@ -48,9 +48,8 @@ EXPORT UUID := MODULE
      *
      * @see     GenerateStr
      */
-    EXPORT UUIDBin_t GenerateBin() := EMBED(c++)
+    EXPORT UUIDBin_t GenerateBin() VOLATILE := EMBED(c++)
         #option library uuid
-        #option volatile
         #include <uuid/uuid.h>
 
         #body
@@ -68,9 +67,8 @@ EXPORT UUID := MODULE
      *
      * @see     GenerateBin
      */
-    EXPORT UUIDStr_t GenerateStr() := EMBED(c++)
+    EXPORT UUIDStr_t GenerateStr() VOLATILE := EMBED(c++)
         #option library uuid
-        #option volatile
         #include <uuid/uuid.h>
 
         #body
