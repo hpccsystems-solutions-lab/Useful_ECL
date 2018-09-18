@@ -25,6 +25,7 @@ well-commented.
 * [ReadLocalConfigFile.ecl](ReadLocalConfigFile.ecl)
 * [ReadLocalFile.ecl](ReadLocalFile.ecl)
 * [RemoveAllSuperFileLogicalFiles.ecl](RemoveAllSuperFileLogicalFiles.ecl)
+* [RowFieldsOut.ecl](RowFieldsOut.ecl)
 * [ScalarArgType.ecl](ScalarArgType.ecl)
 * [Sets.ecl](Sets.ecl)
 * [Str.ecl](Str.ecl)
