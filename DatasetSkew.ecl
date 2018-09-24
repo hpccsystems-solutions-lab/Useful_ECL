@@ -59,7 +59,7 @@ EXPORT DatasetSkew(VIRTUAL DATASET inFile) := FUNCTION
                 )
         );
 
-    // Join the zero-count recoreset with the calculated result; the net
+    // Join the zero-count recordset with the calculated result; the net
     // effect is to fill in any holes in the per-slave record counts
     nodeCounts := JOIN
         (
