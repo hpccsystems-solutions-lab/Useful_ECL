@@ -11,7 +11,7 @@
  * @return  A new recordset showing the number of records currently hosted on
  *          each Thor slave process, along with a skew value in the same
  *          format as the skew shown in workunit graphs (a percentage value,
- *          ranging from -100 to (100 * number of Thor slaves))
+ *          ranging from -100 to (100 * (number of Thor slaves - 1)))
  */
 EXPORT DatasetSkew(VIRTUAL DATASET inFile) := FUNCTION
     IMPORT Std;
