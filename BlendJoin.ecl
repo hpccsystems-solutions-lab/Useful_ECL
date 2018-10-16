@@ -47,11 +47,11 @@ EXPORT BlendJoin(lhs, rhs, joinConditionStr, resultRec, joinFlagsStr = '\'\'', p
     #EXPORTXML(resultFields, resultRec);
     #EXPORTXML(lhsFields, RECORDOF(lhs));
     #EXPORTXML(rhsFields, RECORDOF(rhs));
-    #DECLARE(needsDelim);
+    #UNIQUENAME(needsDelim);
 
     // Setup our preferred LEFT and RIGHT
-    #DECLARE(prefDS);
-    #DECLARE(altDS);
+    #UNIQUENAME(prefDS);
+    #UNIQUENAME(altDS);
     #IF(prefer = 'rhs')
         #SET(prefDS, 'RIGHT')
         #SET(altDS, 'LEFT')

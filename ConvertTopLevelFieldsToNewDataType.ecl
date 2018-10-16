@@ -14,8 +14,8 @@ EXPORT ConvertTopLevelFieldsToNewDataType(inFile, newDataType = '\'STRING\'') :=
     IMPORT Std;
 
     LOADXML('<xml/>');
-    #DECLARE(recLevel);
-    #DECLARE(needsDelim);
+    #UNIQUENAME(recLevel);
+    #UNIQUENAME(needsDelim);
     #SET(needsDelim, 0);
     #EXPORTXML(inFileFields, RECORDOF(inFile))
 

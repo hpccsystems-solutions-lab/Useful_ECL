@@ -1457,10 +1457,10 @@ END;
 IMPORT Useful_ECL;
 
 ExecuteTest(set1, set2) := MACRO
-    #DECLARE(inType);
+    #UNIQUENAME(inType);
     #SET(inType, #GETDATATYPE(set1));
 
-    #DECLARE(baseType);
+    #UNIQUENAME(baseType);
     #IF(REGEXFIND('unsigned', %'inType'%[8..]))
         #SET(baseType, 'Unsigned')
     #ELSEIF(REGEXFIND('integer', %'inType'%[8..]))
@@ -1475,15 +1475,15 @@ ExecuteTest(set1, set2) := MACRO
         #ERROR('Unknown type ' + %'inType'%);
     #END
 
-    #DECLARE(BaseModule);
+    #UNIQUENAME(BaseModule);
     #SET(BaseModule, 'Useful_ECL.Sets');
-    #DECLARE(DedupFunction);
+    #UNIQUENAME(DedupFunction);
     #SET(DedupFunction, %'BaseModule'% + '.' + %'baseType'% + 'Dedup');
-    #DECLARE(UnionFunction);
+    #UNIQUENAME(UnionFunction);
     #SET(UnionFunction, %'BaseModule'% + '.' + %'baseType'% + 'Union');
-    #DECLARE(IntersectionFunction);
+    #UNIQUENAME(IntersectionFunction);
     #SET(IntersectionFunction, %'BaseModule'% + '.' + %'baseType'% + 'Intersection');
-    #DECLARE(DifferenceFunction);
+    #UNIQUENAME(DifferenceFunction);
     #SET(DifferenceFunction, %'BaseModule'% + '.' + %'baseType'% + 'Difference');
 
     OUTPUT(set1, NAMED(%'baseType'% + '_value_1'));

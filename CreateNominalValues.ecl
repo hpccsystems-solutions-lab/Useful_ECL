@@ -81,10 +81,10 @@ EXPORT CreateNominalValues(inFile, attrListStr, outFile, outMap, oldMap = '') :=
     #UNIQUENAME(oldMapDict);
     %oldMapDict% := DICTIONARY(%oldMapMaximums%, {fieldName => nom});
 
-    #DECLARE(needsDelim);
+    #UNIQUENAME(needsDelim);
     #SET(needsDelim, 0);
-    #DECLARE(corrNamePosX);
-    #DECLARE(fieldX);
+    #UNIQUENAME(corrNamePosX);
+    #UNIQUENAME(fieldX);
     #SET(corrNamePosX, 1);
 
     // Create nominal values for each unique value in our dataset

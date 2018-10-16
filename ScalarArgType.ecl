@@ -9,9 +9,9 @@
  *          (as determined by #GETDATATYPE()) will be returned.
  */
 EXPORT ScalarArgType(value) := FUNCTIONMACRO
-    #DECLARE(outType);
+    #UNIQUENAME(outType);
     #SET(outType, '');
-    #DECLARE(inType);
+    #UNIQUENAME(inType);
     #SET(inType, #GETDATATYPE(value));
 
     #IF(%'inType'%[..6] = 'string')

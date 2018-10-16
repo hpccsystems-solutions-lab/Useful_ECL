@@ -14,7 +14,7 @@ EXPORT ReplaceCharInDataset(inFile, target, replacement) := FUNCTIONMACRO
     IMPORT Std;
 
     LOADXML('<xml/>');
-    #DECLARE(recLevel);
+    #UNIQUENAME(recLevel);
     #SET(recLevel, 0);
     #EXPORTXML(inFileFields, RECORDOF(inFile))
 

@@ -76,7 +76,7 @@ R := RECORD
     DATASET(S) f_child_dataset;
 END;
 
-#DECLARE(recordDetails);
+#UNIQUENAME(recordDetails);
 #EXPORT(recordDetails, R);
 OUTPUT(%'recordDetails'%);
 

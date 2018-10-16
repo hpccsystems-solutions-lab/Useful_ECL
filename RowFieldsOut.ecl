@@ -19,7 +19,7 @@ EXPORT RowFieldsOut(oneRow, prefix = '\'\'') := MACRO
     LOADXML('<xml/>');
     #EXPORTXML(rowFields, RECORDOF(oneRow));
 
-    #DECLARE(recLevel);
+    #UNIQUENAME(recLevel);
     #SET(recLevel, 0);
 
     #FOR(rowFields)
