@@ -266,4 +266,82 @@ EXPORT WorkunitExec := MODULE
         RETURN queryResults(rState IN ['running', 'blocked']);
     END;
 
+    /**
+     * Extract, by name, one result stored within a workunit.  Because a
+     * workunit result can be of any data type, the returned value will be a
+     * STRING containing an XML document.
+     *
+     * Example PARSE for extracting a single string value from a result named
+     * 'foo' from the results of this call:
+     *
+     * parsedData := PARSE
+     *     (
+     *         res,
+     *         rResultValue,
+     *         TRANSFORM
+     *             (
+     *                 {
+     *                     STRING  fooValue
+     *                 },
+     *                 SELF.fooValue := XMLTEXT('foo')
+     *             ),
+     *         XML('Dataset/Row')
+     *     );
+     *
+     * @param   workunitID          The WUID of the workunit containing the
+     *                              result; REQUIRED
+     * @param   resultName          The name of the result to retrieve;
+     *                              REQUIRED
+     * @param   espIPAddress        The IP address of the ESP service, as
+     *                              a string; REQUIRED
+     * @param   espScheme           The scheme (http, https, etc) to use
+     *                              when constructing the full URL to the
+     *                              ESP service; OPTIONAL, defaults
+     *                              to 'http'
+     * @param   espPort             The port number to use when connecting
+     *                              to the cluster; OPTIONAL, defaults to
+     *                              8010
+     * @param   username            The user name to use when connecting
+     *                              to the cluster; OPTIONAL, defaults to
+     *                              an empty string
+     * @param   userPW              The username password to use when
+     *                              connecting to the cluster; OPTIONAL,
+     *                              defaults to an empty string
+     *
+     * @return  A new DATASET({STRING rWUID, STRING rResultname, STRING rResultVAlue})
+     *          containing the results of the call.  If it is non-empty then
+     *          the call was successful.  The rResultValue attribute will
+     *          contain the workunit's result in XML format; this document
+     *          will need to be parsed to extract the actual stored value.
+     */
+    ExtractWorkunitResultByName(STRING workunitID,
+                                STRING resultName,
+                                STRING espIPAddress,
+                                STRING espScheme = 'http',
+                                UNSIGNED2 espPort = 8010,
+                                STRING username = '',
+                                STRING userPW = '') := FUNCTION
+        espURL := CreateESPURL(username, userPW, espScheme, espIPAddress, espPort);
+
+        QueryResultsLayout := RECORD
+            STRING  rWUID           {XPATH('Wuid')};        // WUID of found workunit
+            STRING  rResultName     {XPATH('Name')};        // Name of result
+            STRING  rResultValue    {XPATH('Result')};      // Result in XML format
+        END;
+
+        queryResults := SOAPCALL
+            (
+                espURL,
+                'WUResult',
+                {
+                    STRING pWUID {XPATH('Wuid')} := workunitID;
+                    STRING pResultName {XPATH('ResultName')} := resultName;
+                },
+                DATASET(QueryResultsLayout),
+                XPATH('WUResultResponse')
+            );
+
+        RETURN queryResults;
+    END;
+
 END;
