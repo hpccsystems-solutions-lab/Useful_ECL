@@ -276,7 +276,7 @@ EXPORT WorkunitExec := MODULE
      *
      * parsedData := PARSE
      *     (
-     *         res,
+     *         resultOfFunctionCall,
      *         rResultValue,
      *         TRANSFORM
      *             (
