@@ -10,6 +10,8 @@
  * archived, this code will not be able to find it.  To prevent Sasha from
  * archiving those compiled workunits, mark them as "Protected".
  */
+IMPORT Std;
+
 EXPORT WorkunitExec := MODULE
 
     /**
@@ -133,7 +135,8 @@ EXPORT WorkunitExec := MODULE
                     STRING pState {XPATH('State')} := 'compiled';
                 },
                 DATASET(QueryResultsLayout),
-                XPATH('WUQueryResponse/Workunits/ECLWorkunit')
+                XPATH('WUQueryResponse/Workunits/ECLWorkunit'),
+                TIMEOUT(15), ONFAIL(SKIP)
             );
         latestWUID := TOPN(queryResults, 1, -rWUID)[1];
 
@@ -150,7 +153,8 @@ EXPORT WorkunitExec := MODULE
                     DATASET(RunArgLayout) pRunArgs {XPATH('Variables/NamedValue')} := runArguments;
                 },
                 DATASET(RunResultsLayout),
-                XPATH('WURunResponse')
+                XPATH('WURunResponse'),
+                TIMEOUT(15), ONFAIL(SKIP)
             );
 
         RETURN IF(EXISTS(queryResults), runResults, DATASET([], RunResultsLayout));
@@ -204,7 +208,8 @@ EXPORT WorkunitExec := MODULE
                     STRING pJobname {XPATH('Jobname')} := jobName;
                 },
                 DATASET(QueryResultsLayout),
-                XPATH('WUQueryResponse/Workunits/ECLWorkunit')
+                XPATH('WUQueryResponse/Workunits/ECLWorkunit'),
+                TIMEOUT(15), ONFAIL(SKIP)
             );
         latestWUID := TOPN(queryResults(rState IN ['running', 'blocked']), 1, -rWUID)[1];
 
@@ -233,9 +238,10 @@ EXPORT WorkunitExec := MODULE
      *                              connecting to the cluster; OPTIONAL,
      *                              defaults to an empty string
      *
-     * @return  A new DATASET({STRING rWUID, STRING rState}) of all running
-     *          or blocked workunits; may return an empty dataset, indicating
-     *          that none have been found
+     * @return  A new DATASET({STRING rWUID, STRING rState, BOOLEAN thisWUI})
+     *          of all running or blocked workunits; thisWU will be TRUE if
+     *          the rWUID is the same one as is running this function; may
+     *          return an empty dataset, indicating that none have been found
      */
     EXPORT FindRunningWorkunitsInCluster(STRING clusterName,
                                          STRING espIPAddress,
@@ -248,11 +254,12 @@ EXPORT WorkunitExec := MODULE
         QueryResultsLayout := RECORD
             STRING  rWUID       {XPATH('Wuid')};
             STRING  rState      {XPATH('State')};
+            BOOLEAN thisWU := FALSE;
         END;
 
         // Find the latest running (or blocked) version of a workunit that
         // matches the given jobName
-        queryResults := SOAPCALL
+        queryResults0 := SOAPCALL
             (
                 espURL,
                 'WUQuery',
@@ -260,10 +267,22 @@ EXPORT WorkunitExec := MODULE
                     STRING pClusterName {XPATH('Cluster')} := clusterName;
                 },
                 DATASET(QueryResultsLayout),
-                XPATH('WUQueryResponse/Workunits/ECLWorkunit')
+                XPATH('WUQueryResponse/Workunits/ECLWorkunit'),
+                TIMEOUT(15), ONFAIL(SKIP)
             );
 
-        RETURN queryResults(rState IN ['running', 'blocked']);
+        queryResults := PROJECT
+            (
+                queryResults0(rState IN ['running', 'blocked']),
+                TRANSFORM
+                    (
+                        RECORDOF(LEFT),
+                        SELF.thisWU := LEFT.rWUID = Std.System.Job.WUID(),
+                        SELF := LEFT
+                    )
+            );
+
+        RETURN queryResults;
     END;
 
     /**
@@ -338,7 +357,8 @@ EXPORT WorkunitExec := MODULE
                     STRING pResultName {XPATH('ResultName')} := resultName;
                 },
                 DATASET(QueryResultsLayout),
-                XPATH('WUResultResponse')
+                XPATH('WUResultResponse'),
+                TIMEOUT(15), ONFAIL(SKIP)
             );
 
         RETURN queryResults;
