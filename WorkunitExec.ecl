@@ -64,6 +64,7 @@ EXPORT WorkunitExec := MODULE
      * workunit.
      */
     EXPORT RunResultsLayout := RECORD
+        STRING  wuid    {XPATH('Wuid')};
         STRING  state   {XPATH('State')};
         STRING  results {XPATH('Results')};
     END;
