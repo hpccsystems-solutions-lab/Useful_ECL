@@ -377,7 +377,7 @@ EXPORT WorkunitExec := MODULE
      *          contain the workunit's result in XML format; this document
      *          will need to be parsed to extract the actual stored value.
      */
-    ExtractWorkunitResultByName(STRING workunitID,
+    EXPORT ExtractWorkunitResultByName(STRING workunitID,
                                 STRING resultName,
                                 STRING espIPAddress,
                                 STRING espScheme = 'http',
