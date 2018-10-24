@@ -122,6 +122,9 @@ EXPORT WorkunitExec := MODULE
      * @param   userPW              The username password to use when
      *                              connecting to the cluster; OPTIONAL,
      *                              defaults to an empty string
+     * @param   timeoutInSeconds    The number of seconds to wait for the
+     *                              executed job to complete; use zero (0) to
+     *                              wait forever; OPTIONAL, defaults to zero
      *
      * @return  A dataset in RunResultsLayout format containing run
      *          results.  If no workunit matching the given jobname can be
@@ -137,7 +140,8 @@ EXPORT WorkunitExec := MODULE
                                      DATASET(RunArgLayout) runArguments = DATASET([], RunArgLayout),
                                      BOOLEAN waitForCompletion = FALSE,
                                      STRING username = '',
-                                     STRING userPW = '') := FUNCTION
+                                     STRING userPW = '',
+                                     UNSIGNED2 timeoutInSeconds = 0) := FUNCTION
         espURL := CreateESPURL(username, userPW, espScheme, espIPAddress, espPort);
 
         QueryResultsLayout := RECORD
@@ -157,7 +161,7 @@ EXPORT WorkunitExec := MODULE
                 },
                 DATASET(QueryResultsLayout),
                 XPATH('WUQueryResponse/Workunits/ECLWorkunit'),
-                TIMEOUT(15), ONFAIL(SKIP)
+                TIMEOUT(60), ONFAIL(SKIP)
             );
         latestWUID := TOPN(queryResults, 1, -rWUID)[1];
 
@@ -175,7 +179,7 @@ EXPORT WorkunitExec := MODULE
                 },
                 DATASET(RunResultsLayout),
                 XPATH('WURunResponse'),
-                TIMEOUT(15), ONFAIL(SKIP)
+                TIMEOUT(timeoutInSeconds), ONFAIL(SKIP)
             );
 
         RETURN IF(EXISTS(queryResults), runResults, DATASET([], RunResultsLayout));
@@ -202,6 +206,9 @@ EXPORT WorkunitExec := MODULE
      * @param   userPW              The username password to use when
      *                              connecting to the cluster; OPTIONAL,
      *                              defaults to an empty string
+     * @param   timeoutInSeconds    The number of seconds to wait for the
+     *                              executed job to complete; use zero (0) to
+     *                              wait forever; OPTIONAL, defaults to 60
      *
      * @return  The workunit ID of the found workunit or an empty string if
      *          a running workunit with that name cannot be found
@@ -211,7 +218,8 @@ EXPORT WorkunitExec := MODULE
                                      STRING espScheme = 'http',
                                      UNSIGNED2 espPort = 8010,
                                      STRING username = '',
-                                     STRING userPW = '') := FUNCTION
+                                     STRING userPW = '',
+                                     UNSIGNED2 timeoutInSeconds = 60) := FUNCTION
         espURL := CreateESPURL(username, userPW, espScheme, espIPAddress, espPort);
 
         QueryResultsLayout := RECORD
@@ -230,7 +238,7 @@ EXPORT WorkunitExec := MODULE
                 },
                 DATASET(QueryResultsLayout),
                 XPATH('WUQueryResponse/Workunits/ECLWorkunit'),
-                TIMEOUT(15), ONFAIL(SKIP)
+                TIMEOUT(timeoutInSeconds), ONFAIL(SKIP)
             );
         latestWUID := TOPN(queryResults(rState IN ['running', 'blocked']), 1, -rWUID)[1];
 
@@ -258,6 +266,9 @@ EXPORT WorkunitExec := MODULE
      * @param   userPW              The username password to use when
      *                              connecting to the cluster; OPTIONAL,
      *                              defaults to an empty string
+     * @param   timeoutInSeconds    The number of seconds to wait for the
+     *                              executed job to complete; use zero (0) to
+     *                              wait forever; OPTIONAL, defaults to 60
      *
      * @return  A new DATASET({STRING rWUID, STRING rState, BOOLEAN thisWUI})
      *          of all running or blocked workunits; thisWU will be TRUE if
@@ -269,7 +280,8 @@ EXPORT WorkunitExec := MODULE
                                          STRING espScheme = 'http',
                                          UNSIGNED2 espPort = 8010,
                                          STRING username = '',
-                                         STRING userPW = '') := FUNCTION
+                                         STRING userPW = '',
+                                         UNSIGNED2 timeoutInSeconds = 60) := FUNCTION
         espURL := CreateESPURL(username, userPW, espScheme, espIPAddress, espPort);
 
         QueryResultsLayout := RECORD
@@ -289,7 +301,7 @@ EXPORT WorkunitExec := MODULE
                 },
                 DATASET(QueryResultsLayout),
                 XPATH('WUQueryResponse/Workunits/ECLWorkunit'),
-                TIMEOUT(15), ONFAIL(SKIP)
+                TIMEOUT(timeoutInSeconds), ONFAIL(SKIP)
             );
 
         queryResults := PROJECT
@@ -347,6 +359,9 @@ EXPORT WorkunitExec := MODULE
      * @param   userPW              The username password to use when
      *                              connecting to the cluster; OPTIONAL,
      *                              defaults to an empty string
+     * @param   timeoutInSeconds    The number of seconds to wait for the
+     *                              executed job to complete; use zero (0) to
+     *                              wait forever; OPTIONAL, defaults to 60
      *
      * @return  A new DATASET({STRING rWUID, STRING rResultname, STRING rResultVAlue})
      *          containing the results of the call.  If it is non-empty then
@@ -360,7 +375,8 @@ EXPORT WorkunitExec := MODULE
                                 STRING espScheme = 'http',
                                 UNSIGNED2 espPort = 8010,
                                 STRING username = '',
-                                STRING userPW = '') := FUNCTION
+                                STRING userPW = '',
+                                UNSIGNED2 timeoutInSeconds = 60) := FUNCTION
         espURL := CreateESPURL(username, userPW, espScheme, espIPAddress, espPort);
 
         QueryResultsLayout := RECORD
@@ -379,7 +395,7 @@ EXPORT WorkunitExec := MODULE
                 },
                 DATASET(QueryResultsLayout),
                 XPATH('WUResultResponse'),
-                TIMEOUT(15), ONFAIL(SKIP)
+                TIMEOUT(timeoutInSeconds), ONFAIL(SKIP)
             );
 
         RETURN queryResults;
