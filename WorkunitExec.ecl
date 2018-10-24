@@ -94,6 +94,14 @@ EXPORT WorkunitExec := MODULE
      * with new arguments.  The arguments are mapped to the STORED
      * attributes in the workunit by name.
      *
+     * Remember that Thor typically executes only a single workunit at
+     * a time.  Unless you have a special cluster configuration that allows
+     * you to run multiple Thor workunits simultaneously, you should avoid
+     * trying to invoke a compiled Thor workunit from a Thor job.  The
+     * result will be a hung Thor cluster, as the first job will be waiting
+     * for the second job to complete, while the second job will be waiting for
+     * the first to complete.
+     *
      * @param   jobName             The jobname of the workunit to execute
      *                              as a string; REQUIRED
      * @param   espIPAddress        The IP address of the ESP service, as
