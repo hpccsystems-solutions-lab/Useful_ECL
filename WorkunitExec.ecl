@@ -38,7 +38,7 @@ EXPORT WorkunitExec := MODULE
                         UNSIGNED2 espPort) := FUNCTION
         fullUserInfo := MAP
             (
-                username != '' AND userPW != '' => username + ':' + userPW + '@',
+                username != '' AND userPW != '' => username + ':' + REGEXREPLACE('@', userPW, '%40') + '@',
                 username != ''  =>  username + '@',
                 ''
             );
