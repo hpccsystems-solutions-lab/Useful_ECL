@@ -15,12 +15,32 @@ IMPORT Std;
 EXPORT WorkunitExec := MODULE
 
     /**
+     * Helper function for encoding special characters in strings that will
+     * eventually make it into URLs.  The following characters are encoded:
+     *      % -> %25
+     *      @ -> %40
+     *
+     * @param   s                   The string to encode; REQUIRED
+     *
+     * @return  The argument, encoded.
+     */
+    SHARED EncodeString(STRING s) := FUNCTION
+        s1 := REGEXREPLACE('%', s, '%25');
+        s2 := REGEXREPLACE('@', s1, '%40');
+
+        RETURN s2;
+    END;
+
+    /**
      * Helper function for creating a complete URL suitable for SOAPCALL
      *
      * @param   username            The user name to use when connecting
-     *                              to the cluster; REQUIRED
+     *                              to the cluster; the special characters
+     *                              '%' and '@' should not be encoded; REQUIRED
      * @param   userPW              The username password to use when
-     *                              connecting to the cluster; REQUIRED
+     *                              connecting to the cluster; the special
+     *                              characters '%' and '@' should not be
+     *                              encoded; REQUIRED
      * @param   espScheme           The scheme (http, https, etc) to use
      *                              when constructing the full URL to the
      *                              ESP service; REQUIRED
@@ -38,8 +58,8 @@ EXPORT WorkunitExec := MODULE
                         UNSIGNED2 espPort) := FUNCTION
         fullUserInfo := MAP
             (
-                username != '' AND userPW != '' => REGEXREPLACE('@', username, '%40') + ':' + REGEXREPLACE('@', userPW, '%40') + '@',
-                username != ''  =>  REGEXREPLACE('@', username, '%40') + '@',
+                username != '' AND userPW != '' => EncodeString(username) + ':' + EncodeString(userPW) + '@',
+                username != ''  =>  EncodeString(username) + '@',
                 ''
             );
 
