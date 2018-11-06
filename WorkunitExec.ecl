@@ -378,13 +378,13 @@ EXPORT WorkunitExec := MODULE
      *          will need to be parsed to extract the actual stored value.
      */
     EXPORT ExtractWorkunitResultByName(STRING workunitID,
-                                STRING resultName,
-                                STRING espIPAddress,
-                                STRING espScheme = 'http',
-                                UNSIGNED2 espPort = 8010,
-                                STRING username = '',
-                                STRING userPW = '',
-                                UNSIGNED2 timeoutInSeconds = 60) := FUNCTION
+                                       STRING resultName,
+                                       STRING espIPAddress,
+                                       STRING espScheme = 'http',
+                                       UNSIGNED2 espPort = 8010,
+                                       STRING username = '',
+                                       STRING userPW = '',
+                                       UNSIGNED2 timeoutInSeconds = 60) := FUNCTION
         espURL := CreateESPURL(username, userPW, espScheme, espIPAddress, espPort);
 
         QueryResultsLayout := RECORD
