@@ -12,11 +12,15 @@
  * first non-blank character.  Empty values (e.g. 'key=') are allowed.
  * Whitespace surrounding both key and value is trimmed away.
  *
- * It should be stressed that this function reads a local file.  If executed
- * in a multi-node Thor environment, the expected file should exist on all
- * Thor nodes.
+ * It should be stressed that this function normally reads a local file.
+ * If executed in a multi-node Thor environment, the expected file should either
+ * exist on all Thor nodes or you should supply the IP address of the system
+ * hosting the file.
  *
- * @param   fullPath        The full path to the configuration file
+ * @param   fullPath        The full path to the configuration file; REQUIRED
+ * @param   ipAddress       The IP address of the system that hosts the file
+ *                          at fullPath; use '127.0.0.1' to specify the local
+ *                          system; OPTIONAL, defaults to '127.0.0.1'
  *
  * @return  Parsed configuration parameters in the form of a DICTIONARY.
  *          The attributes within the dictionary are 'key' and 'value'.
@@ -27,7 +31,7 @@
 
 IMPORT Std;
 
-EXPORT ReadLocalConfigFile(STRING fullPath) := FUNCTION
+EXPORT ReadLocalConfigFile(STRING fullPath, STRING ipAddress := '127.0.0.1') := FUNCTION
     DictRec := RECORD
         STRING  key;
         STRING  value;
@@ -36,7 +40,7 @@ EXPORT ReadLocalConfigFile(STRING fullPath) := FUNCTION
     // Pull in file as a recordset composed of separate text lines
     fileLines := DATASET
         (
-            DYNAMIC(Std.File.ExternalLogicalFileName('127.0.0.1', fullPath)),
+            DYNAMIC(Std.File.ExternalLogicalFileName(ipAddress, fullPath)),
             {STRING s},
             CSV(SEPARATOR('')),
             OPT
