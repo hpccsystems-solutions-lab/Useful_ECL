@@ -278,10 +278,10 @@ EXPORT WorkunitExec := MODULE
      *                              executed job to complete; use zero (0) to
      *                              wait forever; OPTIONAL, defaults to 60
      *
-     * @return  A new DATASET({STRING rWUID, STRING rState, BOOLEAN thisWUI})
-     *          of all running or blocked workunits; thisWU will be TRUE if
-     *          the rWUID is the same one as is running this function; may
-     *          return an empty dataset, indicating that none have been found
+     * @return  A new DATASET of all running or blocked workunits; thisWU will
+     *          be TRUE if the rWUID is the same one as is running this
+     *          function; may return an empty dataset, indicating that none
+     *          have been found
      */
     EXPORT FindRunningWorkunitsInCluster(STRING clusterName,
                                          STRING espIPAddress,
@@ -293,8 +293,10 @@ EXPORT WorkunitExec := MODULE
         espURL := CreateESPURL(username, userPW, espScheme, espIPAddress, espPort);
 
         QueryResultsLayout := RECORD
-            STRING  rWUID       {XPATH('Wuid')};
-            STRING  rState      {XPATH('State')};
+            STRING  rWUID           {XPATH('Wuid')};
+            STRING  rState          {XPATH('State')};
+            STRING  rClusterName    {XPATH('ClusterName')};
+            STRING  rJobname        {XPATH('JobName')};
             BOOLEAN thisWU := FALSE;
         END;
 
