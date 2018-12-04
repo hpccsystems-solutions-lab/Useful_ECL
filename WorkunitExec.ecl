@@ -350,8 +350,9 @@ EXPORT WorkunitExec := MODULE
      *
      * @param   workunitID          The WUID of the workunit containing the
      *                              result; REQUIRED
-     * @param   resultName          The name of the result to retrieve;
-     *                              REQUIRED
+     * @param   resultName          The name of the result to retrieve; use
+     *                              an empty string to retrieve all results
+     *                              from the workunit; REQUIRED
      * @param   espIPAddress        The IP address of the ESP service, as
      *                              a string; REQUIRED
      * @param   espScheme           The scheme (http, https, etc) to use
@@ -376,6 +377,8 @@ EXPORT WorkunitExec := MODULE
      *          the call was successful.  The rResultValue attribute will
      *          contain the workunit's result in XML format; this document
      *          will need to be parsed to extract the actual stored value.
+     *          Note that the format of the XML for the results will differ
+     *          depending on whether or not you supply resultName value.
      */
     EXPORT ExtractWorkunitResultByName(STRING workunitID,
                                        STRING resultName,
@@ -387,13 +390,13 @@ EXPORT WorkunitExec := MODULE
                                        UNSIGNED2 timeoutInSeconds = 60) := FUNCTION
         espURL := CreateESPURL(username, userPW, espScheme, espIPAddress, espPort);
 
-        QueryResultsLayout := RECORD
+        NamedQueryResultsLayout := RECORD
             STRING  rWUID           {XPATH('Wuid')};        // WUID of found workunit
             STRING  rResultName     {XPATH('Name')};        // Name of result
             STRING  rResultValue    {XPATH('Result')};      // Result in XML format
         END;
 
-        queryResults := SOAPCALL
+        namedQueryResults := SOAPCALL
             (
                 espURL,
                 'WUResult',
@@ -401,12 +404,44 @@ EXPORT WorkunitExec := MODULE
                     STRING pWUID {XPATH('Wuid')} := workunitID;
                     STRING pResultName {XPATH('ResultName')} := resultName;
                 },
-                DATASET(QueryResultsLayout),
+                DATASET(NamedQueryResultsLayout),
                 XPATH('WUResultResponse'),
                 TIMEOUT(timeoutInSeconds), ONFAIL(SKIP)
             );
 
-        RETURN queryResults;
+        FullQueryResultsLayout := RECORD
+            STRING  rWUID           {XPATH('Wuid')};        // WUID of found workunit
+            STRING  rResults        {XPATH('Results')};     // All results in XML format
+        END;
+
+        fullQueryResults := SOAPCALL
+            (
+                espURL,
+                'WUFullResult',
+                {
+                    STRING pWUID {XPATH('Wuid')} := workunitID;
+                },
+                DATASET(FullQueryResultsLayout),
+                XPATH('WUFullResultResponse'),
+                TIMEOUT(timeoutInSeconds), ONFAIL(SKIP)
+            );
+
+        parsedFullQueryResults := PARSE
+            (
+                fullQueryResults,
+                rResults,
+                TRANSFORM
+                    (
+                        NamedQueryResultsLayout,
+                        SELF.rWUID := LEFT.rWUID,
+                        SELF.rResultName := XMLTEXT('@name'),
+                        SELF.rResultValue := XMLTEXT('<>'),
+                        SELF := []
+                    ),
+                XML('Result/Dataset')
+            );
+
+        RETURN IF(resultName != '', namedQueryResults, parsedFullQueryResults);
     END;
 
 END;
