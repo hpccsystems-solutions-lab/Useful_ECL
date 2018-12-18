@@ -19,6 +19,7 @@ EXPORT WorkunitExec := MODULE
      * eventually make it into URLs.  The following characters are encoded:
      *      % -> %25
      *      @ -> %40
+     *      : -> %3A
      *
      * @param   s                   The string to encode; REQUIRED
      *
@@ -27,8 +28,9 @@ EXPORT WorkunitExec := MODULE
     SHARED EncodeString(STRING s) := FUNCTION
         s1 := REGEXREPLACE('%', s, '%25');
         s2 := REGEXREPLACE('@', s1, '%40');
+        s3 := REGEXREPLACE(':', s2, '%3A');
 
-        RETURN s2;
+        RETURN s3;
     END;
 
     /**
