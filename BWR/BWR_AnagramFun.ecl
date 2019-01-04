@@ -22,7 +22,8 @@ IMPORT Std;
  *
  * @param   s   The word to convert to a prime factor product
  *
- * @return  An UNSIGNED8 value.
+ * @return  An UNSIGNED8 value.  Will return zero if the string does not
+ *          contain any ASCII characters.
  */
 UNSIGNED8 StringToPrimeFactorProduct(CONST VARSTRING s) := EMBED(C++)
     __uint64    res = 1;
@@ -118,7 +119,10 @@ wordsWithPrimeFactorProduct := PROJECT
                     UNSIGNED8   pfp,
                     WordRec
                 },
-                SELF.pfp := StringToPrimeFactorProduct(LEFT.word),
+
+                myPFP := StringToPrimeFactorProduct(LEFT.word);
+
+                SELF.pfp := IF(myPFP > 0, myPFP, SKIP),
                 SELF := LEFT
             )
     );
@@ -148,10 +152,10 @@ groupedAnagrams := DENORMALIZE
             (
                 AnagramRec,
 
-                wordList := PROJECT(ROWS(RIGHT), TRANSFORM(WordRec, SELF := LEFT));
+                wordList := SORT(PROJECT(ROWS(RIGHT), TRANSFORM(WordRec, SELF := LEFT)), word);
 
                 SELF.pfp := LEFT.pfp,
-                SELF.word_count := IF(COUNT(wordList) > 1, COUNT(wordList), SKIP),
+                SELF.word_count := IF(COUNT(ROWS(RIGHT)) > 1, COUNT(ROWS(RIGHT)), SKIP),
                 SELF.anagrams := wordList
             ),
         LOCAL
