@@ -19,6 +19,7 @@ well-commented.
 * [BWR_AnagramFun.ecl](BWR/BWR_AnagramFun.ecl)
 * [BWR_InversionOfControlDemo.ecl](BWR/BWR_InversionOfControlDemo.ecl)
 * [BWR_ShowPlatformConstants.ecl](BWR/BWR_ShowPlatformConstants.ecl)
+* [ConcatFieldValues.ecl](ConcatFieldValues.ecl)
 * [DatasetSkew.ecl](DatasetSkew.ecl)
 * [Factorial.ecl](Factorial.ecl)
 * [NotifyHelper.ecl](NotifyHelper.ecl)
