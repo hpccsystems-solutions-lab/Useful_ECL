@@ -19,60 +19,15 @@ EXPORT DatasetSkew(VIRTUAL DATASET inFile) := FUNCTION
     // Calculate the perfect distribution of records for a Thor slave
     perfectDist := COUNT(inFile) / Std.System.Thorlib.Nodes();
 
-    // For each record in the input recordset, determine which Thor slave
-    // is hosting it
-    recordLocation := PROJECT
+    // Get the number of records stored on each node
+    nodeCounts := TABLE
         (
             inFile,
-            TRANSFORM
-                (
-                    {UNSIGNED2 nodeNum},
-                    SELF.nodeNum := Std.System.Thorlib.Node()
-                ),
-            LOCAL
-        );
-
-    // Count the records per Thor slave
-    nodeCounts0 := TABLE
-        (
-            recordLocation,
             {
-                nodeNum,
-                UNSIGNED4   recordCount := COUNT(GROUP)
+                UNSIGNED4   recordCount := COUNT(GROUP),
+                UNSIGNED4   nodeNum := Std.System.Thorlib.Node()
             },
-            nodeNum,
-            FEW
-        );
-
-    // Not all slaves will have records, which means there will be "holes" in
-    // the previous result; we need to fill in those holes with zero-count
-    // records; construct a small recordset containing zero-count records
-    // for all Thor slaves
-    zeroCounts := DATASET
-        (
-            Std.System.Thorlib.Nodes(),
-            TRANSFORM
-                (
-                    RECORDOF(nodeCounts0),
-                    SELF.nodeNum := COUNTER - 1,
-                    SELF.recordCount := 0
-                )
-        );
-
-    // Join the zero-count recordset with the calculated result; the net
-    // effect is to fill in any holes in the per-slave record counts
-    nodeCounts := JOIN
-        (
-            zeroCounts,
-            nodeCounts0,
-            LEFT.nodeNum = RIGHT.nodeNum,
-            TRANSFORM
-                (
-                    RECORDOF(LEFT),
-                    SELF.nodeNum := LEFT.nodeNum,
-                    SELF.recordCount := MAX(LEFT.recordCount, RIGHT.recordCount)
-                ),
-            LEFT OUTER
+            LOCAL
         );
 
     // Add the skew value calculation to the result
