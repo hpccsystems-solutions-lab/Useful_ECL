@@ -12,6 +12,9 @@
  *          OUTPUT('Platform check FALSE');
  *      #END
  *
+ * This function can be found in the standard library as of version 7.2.0
+ * (Std.System.Util.PlatformVersionCheck).
+ *
  * @param   v       The minimum platform version in either xx.xx.xx, xx.xx,
  *                  or xx format (where xx is an integer and does not need
  *                  to be zero-padded)
