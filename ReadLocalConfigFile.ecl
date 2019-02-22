@@ -31,7 +31,7 @@
 
 IMPORT Std;
 
-EXPORT ReadLocalConfigFile(STRING fullPath, STRING ipAddress := '127.0.0.1') := FUNCTION
+EXPORT ReadLocalConfigFile(STRING fullPath, STRING ipAddress = '127.0.0.1') := FUNCTION
     DictRec := RECORD
         STRING  key;
         STRING  value;
