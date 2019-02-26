@@ -11,7 +11,7 @@
 
 IMPORT Std;
 
-EXPORT ReadLocalFile(STRING fullPath, STRING ipAddress := '127.0.0.1') := FUNCTION
+EXPORT ReadLocalFile(STRING fullPath, STRING ipAddress = '127.0.0.1') := FUNCTION
     // Pull in file as a recordset composed of separate text lines
     fileLines := DATASET
         (
