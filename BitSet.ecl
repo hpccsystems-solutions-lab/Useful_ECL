@@ -22,8 +22,8 @@
  *
  *      // Max values
  *      MAX_FOOTPRINT := (Footprint_t)-1;
- *      MAX_BIT_CAPACITY := (BitCapacity_t)-1;
- *      HIGHEST_BIT_POSITION := ((BitPosition_t)-1) - 1;
+ *      MAX_BIT_CAPACITY := MAX_FOOTPRINT * 8;
+ *      HIGHEST_BIT_POSITION := MAX_BIT_CAPACITY - 1;
  *      LOWEST_BIT_POSITION := 0;
  *
  *      // Sizes of a particular bitset
@@ -88,10 +88,10 @@ EXPORT BitSet := MODULE
     EXPORT MAX_FOOTPRINT := (Footprint_t)-1;
 
     // The maximum number of bits that can be referenced within one bitset
-    EXPORT MAX_BIT_CAPACITY := (BitCapacity_t)-1;
+    EXPORT MAX_BIT_CAPACITY := MAX_FOOTPRINT * 8;
 
     // The highest-numbered bit position that can be referenced
-    EXPORT HIGHEST_BIT_POSITION := ((BitPosition_t)-1) - 1;
+    EXPORT HIGHEST_BIT_POSITION := MAX_BIT_CAPACITY - 1;
 
     // The lowest-numbered bit position that can be referenced
     EXPORT LOWEST_BIT_POSITION := 0;
@@ -149,7 +149,7 @@ EXPORT BitSet := MODULE
         const byte*     inData = static_cast<const byte*>(b);
         const char      hexchar[] = "0123456789ABCDEF";
 
-        for (size32_t x = 0; x < lenB; x++)
+        for (uint32_t x = 0; x < lenB; x++)
         {
             *outPtr++ = hexchar[inData[x] >> 4];
             *outPtr++ = hexchar[inData[x] & 0x0F];
@@ -178,11 +178,11 @@ EXPORT BitSet := MODULE
 
         char*   outPtr = __result;
 
-        for (size32_t x = lenB; x > 0; x--)
+        for (uint32_t x = lenB; x > 0; x--)
         {
             const byte  sourceByte = static_cast<const byte*>(b)[x - 1];
 
-            for (size32_t position = 8; position > 0; position--)
+            for (uint32_t position = 8; position > 0; position--)
             {
                 const byte  testValue = 1 << (position - 1);
 
@@ -207,7 +207,7 @@ EXPORT BitSet := MODULE
      */
     EXPORT LITTLE_ENDIAN UNSIGNED8 AsUnsigned(CONST BitSet_t b) := EMBED(C++)
         unsigned __int64    result = 0;
-        const size32_t      numBytesToCopy = (lenB < 8 ? lenB : 8);
+        const uint32_t      numBytesToCopy = (lenB < 8 ? lenB : 8);
 
         memcpy(&result, b, numBytesToCopy);
 
@@ -229,16 +229,21 @@ EXPORT BitSet := MODULE
      * @see     NewFromStrValue
      * @see     NewFromBitPositions
      */
-    EXPORT BitSet_t New(BitCapacity_t bit_capacity) := EMBED(C++)
-        #option pure;
+    EXPORT BitSet_t New(BitCapacity_t bit_capacity) := FUNCTION
+        BitSet_t _New(BitCapacity_t _bit_capacity, BitCapacity_t _max_capacity = MAX_BIT_CAPACITY) := EMBED(C++)
+            #option pure;
 
-        const size32_t  bytesNeeded = bit_capacity / 8 + (bit_capacity % 8 != 0 ? 1 : 0);
+            const unsigned __int64  bitsRequested = (_bit_capacity < _max_capacity ? _bit_capacity : _max_capacity);
+            const uint32_t          bytesNeeded = bitsRequested / 8 + (bitsRequested % 8 != 0 ? 1 : 0);
 
-        // Create empty result bitset
-        __lenResult = bytesNeeded;
-        __result = rtlMalloc(__lenResult);
-        memset(__result, 0, __lenResult);
-    ENDEMBED;
+            // Create empty result bitset
+            __lenResult = bytesNeeded;
+            __result = rtlMalloc(__lenResult);
+            memset(__result, 0, __lenResult);
+        ENDEMBED;
+
+        RETURN _New(bit_capacity);
+    END;
 
     /**
      * Create a new bitset initialized with an integer value.  The optional
@@ -262,8 +267,8 @@ EXPORT BitSet := MODULE
     EXPORT BitSet_t NewFromIntValue(LITTLE_ENDIAN UNSIGNED8 n, BitCapacity_t bit_capacity = 64) := EMBED(C++)
         #option pure
 
-        const size32_t  bytesNeeded = bit_capacity / 8 + (bit_capacity % 8 != 0 ? 1 : 0);
-        const size32_t  numBytesToCopy = (bytesNeeded < sizeof(n) ? bytesNeeded : sizeof(n));
+        const uint32_t  bytesNeeded = bit_capacity / 8 + (bit_capacity % 8 != 0 ? 1 : 0);
+        const uint32_t  numBytesToCopy = (bytesNeeded < sizeof(n) ? bytesNeeded : sizeof(n));
 
         // Create empty result bitset
         __lenResult = bytesNeeded;
@@ -281,10 +286,10 @@ EXPORT BitSet := MODULE
      * allocated in the bitset.
      *
      * @param   s               A STRING containing only ones and zeros; REQUIRED
-     * @param   bit_capacity    The maximum number of bits needed in the new
+     * @param   bit_capacity    The minimum number of bits needed in the new
      *                          bitset; use zero to indicate the number of bits
-     *                          should be derived from the length of <s>; OPTIONAL,
-     *                          defaults to zero
+     *                          should be derived from the length of <s>;
+     *                          OPTIONAL, defaults to zero
      *
      * @return  A new BitSet_t value preinitialized with the characters read
      *          from the <s> argument.  If <bit_capacity> is smaller than the
@@ -294,31 +299,36 @@ EXPORT BitSet := MODULE
      * @see     NewFromIntValue
      * @see     NewFromBitPositions
      */
-    EXPORT BitSet_t NewFromStrValue(STRING s, BitCapacity_t bit_capacity = 0) := EMBED(C++)
-        #option pure;
+    EXPORT BitSet_t NewFromStrValue(STRING s, BitCapacity_t bit_capacity = 0) := FUNCTION
+        BitSet_t _NewFromStrValue(STRING _s, BitCapacity_t _bit_capacity, BitCapacity_t _max_capacity = MAX_BIT_CAPACITY) := EMBED(C++)
+            #option pure;
 
-        const unsigned __int64  actualBitCount = (lenS > bit_capacity ? lenS : bit_capacity);
-        const size32_t          bytesToAllocate = actualBitCount / 8 + (actualBitCount % 8 != 0 ? 1 : 0);
+            const unsigned __int64  bitsRequested = (len_s > _bit_capacity ? len_s : _bit_capacity);
+            const unsigned __int64  actualBitCount = (bitsRequested < _max_capacity ? bitsRequested : _max_capacity);
+            const uint32_t          bytesToAllocate = actualBitCount / 8 + (actualBitCount % 8 != 0 ? 1 : 0);
 
-        // Create empty result bitset
-        __lenResult = bytesToAllocate;
-        __result = rtlMalloc(__lenResult);
-        memset(__result, 0, __lenResult);
+            // Create empty result bitset
+            __lenResult = bytesToAllocate;
+            __result = rtlMalloc(__lenResult);
+            memset(__result, 0, __lenResult);
 
-        for (size32_t resultBytePos = 0; resultBytePos < bytesToAllocate && resultBytePos * 8 < lenS; resultBytePos++)
-        {
-            __int64 incomingCharOffset = static_cast<__int64>(lenS) - static_cast<__int64>((resultBytePos + 1) * 8);
-
-            for (int x = 7; x >= 0; x--)
+            for (uint32_t resultBytePos = 0; resultBytePos < bytesToAllocate && resultBytePos * 8 < len_s; resultBytePos++)
             {
-                if (incomingCharOffset >= 0)
+                __int64 incomingCharOffset = static_cast<__int64>(len_s) - static_cast<__int64>((resultBytePos + 1) * 8);
+
+                for (int x = 7; x >= 0; x--)
                 {
-                    static_cast<byte*>(__result)[resultBytePos] |= ((s[incomingCharOffset] == '0' ? 0 : 1) << x);
+                    if (incomingCharOffset >= 0)
+                    {
+                        static_cast<byte*>(__result)[resultBytePos] |= ((_s[incomingCharOffset] == '0' ? 0 : 1) << x);
+                    }
+                    ++incomingCharOffset;
                 }
-                ++incomingCharOffset;
             }
-        }
-    ENDEMBED;
+        ENDEMBED;
+
+        RETURN _NewFromStrValue(s, bit_capacity);
+    END;
 
     /**
      * Create a new bitset initialized from a list of bit positions.  The
@@ -328,7 +338,7 @@ EXPORT BitSet := MODULE
      * @param   positions       A DATASET(BitPositionsRec) containing the
      *                          zero-based bit positions to set in the
      *                          new bitset; REQUIRED
-     * @param   bit_capacity    The maximum number of bits needed in the new
+     * @param   bit_capacity    The minimum number of bits needed in the new
      *                          bitset; use zero to indicate the number of bits
      *                          should be derived from the highest bit position
      *                          found within <positions>; OPTIONAL,
@@ -344,44 +354,80 @@ EXPORT BitSet := MODULE
      * @see     NewFromStrValue
      * @see     BitsSetPositions
      */
-    EXPORT BitSet_t NewFromBitPositions(DATASET(BitPositionsRec) positions, BitCapacity_t bit_capacity = 0) := EMBED(C++)
-        #option pure;
+    EXPORT BitSet_t NewFromBitPositions(DATASET(BitPositionsRec) positions, BitCapacity_t bit_capacity = 0) := FUNCTION
+        BitSet_t _NewFromBitPositions(DATASET(BitPositionsRec) _positions, BitCapacity_t _bit_capacity, BitCapacity_t _max_capacity = MAX_BIT_CAPACITY, UNSIGNED1 _element_size = SIZEOF(bit_capacity)) := EMBED(C++)
+            #option pure;
 
-        const size32_t          elementSize = 6;
-        const size32_t          numElements = lenPositions / elementSize;
-        unsigned __int64        aPosition = 0;
-        size32_t                highestPosition = 0;
+            const uint32_t          numElements = len_positions / _element_size;
+            unsigned __int64        aPosition = 0;
+            unsigned __int64        highestPosition = 0;
 
-        // Find the highest referenced position
-        for (size32_t x = 0; x < numElements; x++)
-        {
-            memcpy(&aPosition, static_cast<const byte*>(positions) + (x * elementSize), elementSize);
-
-            if (aPosition > highestPosition)
+            // Find the highest referenced position
+            for (uint32_t x = 0; x < numElements; x++)
             {
-                highestPosition = aPosition;
+                memcpy(&aPosition, static_cast<const byte*>(_positions) + (x * _element_size), _element_size);
+
+                if (aPosition > highestPosition)
+                {
+                    highestPosition = aPosition;
+                }
             }
-        }
 
-        const unsigned __int64  actualBitCount = (highestPosition > bit_capacity ? highestPosition : bit_capacity);
-        const size32_t          bytesToAllocate = actualBitCount / 8 + (actualBitCount % 8 != 0 ? 1 : 0);
+            const unsigned __int64  bitsRequested = (highestPosition > _bit_capacity ? highestPosition : _bit_capacity);
+            const unsigned __int64  actualBitCount = (bitsRequested < _max_capacity ? bitsRequested : _max_capacity);
+            const uint32_t          bytesToAllocate = actualBitCount / 8 + (actualBitCount % 8 != 0 ? 1 : 0);
 
-        // Create empty result bitset
-        __lenResult = bytesToAllocate;
-        __result = rtlMalloc(__lenResult);
-        memset(__result, 0, __lenResult);
+            // Create empty result bitset
+            __lenResult = bytesToAllocate;
+            __result = rtlMalloc(__lenResult);
+            memset(__result, 0, __lenResult);
 
-        for (size32_t x = 0; x < numElements; x++)
-        {
-            memcpy(&aPosition, static_cast<const byte*>(positions) + (x * elementSize), elementSize);
+            for (uint32_t x = 0; x < numElements; x++)
+            {
+                memcpy(&aPosition, static_cast<const byte*>(_positions) + (x * _element_size), _element_size);
 
-            size32_t    bytePos = aPosition / 8;
-            size32_t    bitPos = aPosition % 8;
-            byte        newValue = 1 << bitPos;
+                uint32_t    bytePos = aPosition / 8;
+                uint32_t    bitPos = aPosition % 8;
+                byte        newValue = 1 << bitPos;
 
-            static_cast<byte*>(__result)[bytePos] |= newValue;
-        }
-    ENDEMBED;
+                static_cast<byte*>(__result)[bytePos] |= newValue;
+            }
+        ENDEMBED;
+
+        RETURN _NewFromBitPositions(positions, bit_capacity);
+    END;
+
+
+    /**
+     * Makes sure the given bitset can hold <bit_capacity> bits.  A new bitset
+     * is always returned, even if the given bitset is large enough.
+     *
+     * @param   b               A bitset; REQUIRED
+     * @param   bit_capacity    The minimum number of bits needed in the
+     *                          bitset; REQUIRED
+     *
+     * @return  A new BitSet_t value of at least size <bit_capacity>, with the
+     *          bits from <b> copied over.
+     */
+    EXPORT BitSet_t ReserveCapacity(CONST BitSet_t b, BitCapacity_t bit_capacity) := FUNCTION
+        BitSet_t _ReserveCapacity(CONST BitSet_t _b, BitCapacity_t _bit_capacity, BitCapacity_t _max_capacity = MAX_BIT_CAPACITY) := EMBED(C++)
+            #option pure;
+
+            const unsigned __int64  bitsRequested = (_bit_capacity < _max_capacity ? _bit_capacity : _max_capacity);
+            const uint32_t          bytesNeeded = bitsRequested / 8 + (bitsRequested % 8 != 0 ? 1 : 0);
+            const uint32_t          bytesToAllocate = (bytesNeeded > len_b ? bytesNeeded : len_b);
+
+            __lenResult = bytesToAllocate;
+            __result = rtlMalloc(__lenResult);
+            memcpy(__result, _b, len_b);
+            if (__lenResult > len_b)
+            {
+                memset(&(static_cast<byte*>(__result)[len_b]), 0, __lenResult - len_b);
+            }
+        ENDEMBED;
+
+        RETURN _ReserveCapacity(b, bit_capacity);
+    END;
 
     /**
      * Set every bit in a bitset to zero or one.
@@ -434,30 +480,35 @@ EXPORT BitSet := MODULE
      *          is greater than the number of bits referenced by the bitset,
      *          an unchanged copy of <b> is returned.
      */
-    EXPORT BitSet_t SetBit(CONST BitSet_t b, BitPosition_t position, BOOLEAN on = TRUE) := EMBED(C++)
-        #option pure;
+    EXPORT BitSet_t SetBit(CONST BitSet_t b, BitPosition_t position, BOOLEAN on = TRUE) := FUNCTION
+        BitSet_t _SetBit(CONST BitSet_t b, BitPosition_t position, BOOLEAN on, BitPosition_t _max_position = HIGHEST_BIT_POSITION) := EMBED(C++)
+            #option pure;
 
-        // Create a copy of our bitset
-        __lenResult = lenB;
-        __result = rtlMalloc(__lenResult);
-        memcpy(__result, b, lenB);
+            // Create a copy of our bitset
+            __lenResult = lenB;
+            __result = rtlMalloc(__lenResult);
+            memcpy(__result, b, lenB);
 
-        const size32_t  bytePos = position / 8;
+            const unsigned __int64  requestedPosition = (position < _max_position ? position : _max_position);
+            const uint32_t          bytePos = requestedPosition / 8;
 
-        if (bytePos < lenB)
-        {
-            const byte  bitValue = 1 << (position % 8);
-
-            if (on)
+            if (bytePos < lenB)
             {
-                static_cast<byte*>(__result)[bytePos] |= bitValue;
+                const byte  bitValue = 1 << (requestedPosition % 8);
+
+                if (on)
+                {
+                    static_cast<byte*>(__result)[bytePos] |= bitValue;
+                }
+                else
+                {
+                    static_cast<byte*>(__result)[bytePos] &= ~bitValue;
+                }
             }
-            else
-            {
-                static_cast<byte*>(__result)[bytePos] &= ~bitValue;
-            }
-        }
-    ENDEMBED;
+        ENDEMBED;
+
+        RETURN _SetBit(b, position, on);
+    END;
 
     /**
      * Flip a single bit from one to zero, or zero to one, depending on its
@@ -479,7 +530,7 @@ EXPORT BitSet := MODULE
         __result = rtlMalloc(__lenResult);
         memcpy(__result, b, lenB);
 
-        const size32_t  bytePos = position / 8;
+        const uint32_t  bytePos = position / 8;
 
         if (bytePos < lenB)
         {
@@ -512,7 +563,7 @@ EXPORT BitSet := MODULE
         #option pure;
 
         bool            isSet = false;
-        const size32_t  bytePos = position / 8;
+        const uint32_t  bytePos = position / 8;
 
         if (bytePos < lenB)
         {
@@ -545,7 +596,7 @@ EXPORT BitSet := MODULE
     EXPORT BOOLEAN TestBits(CONST BitSet_t b1, CONST BitSet_t b2) := EMBED(C++)
         #option pure;
 
-        for (size32_t x = 0; x < lenB2; x++)
+        for (uint32_t x = 0; x < lenB2; x++)
         {
             if ((x < lenB1 && ((static_cast<const byte*>(b1)[x] & static_cast<const byte*>(b2)[x]) != static_cast<const byte*>(b2)[x]))
                 || (x >= lenB1 && (static_cast<const byte*>(b2)[x]) != 0))
@@ -571,7 +622,7 @@ EXPORT BitSet := MODULE
      * @see     TestBitSetsEqual
      */
     EXPORT BOOLEAN TestAnyBitsSet(CONST BitSet_t b) := EMBED(C++)
-        for (size32_t bytePos = 0; bytePos < lenB; bytePos++)
+        for (uint32_t bytePos = 0; bytePos < lenB; bytePos++)
         {
             const byte  val = static_cast<const byte*>(b)[bytePos];
 
@@ -598,7 +649,7 @@ EXPORT BitSet := MODULE
      * @see     TestBitSetsEqual
      */
     EXPORT BOOLEAN TestNoBitsSet(CONST BitSet_t b) := EMBED(C++)
-        for (size32_t bytePos = 0; bytePos < lenB; bytePos++)
+        for (uint32_t bytePos = 0; bytePos < lenB; bytePos++)
         {
             const byte  val = static_cast<const byte*>(b)[bytePos];
 
@@ -625,7 +676,7 @@ EXPORT BitSet := MODULE
      * @see     TestBitSetsEqual
      */
     EXPORT BOOLEAN TestAllBitsSet(CONST BitSet_t b) := EMBED(C++)
-        for (size32_t bytePos = 0; bytePos < lenB; bytePos++)
+        for (uint32_t bytePos = 0; bytePos < lenB; bytePos++)
         {
             const byte  val = static_cast<const byte*>(b)[bytePos];
 
@@ -639,7 +690,7 @@ EXPORT BitSet := MODULE
     ENDEMBED;
 
     /**
-     * Return a boolean indicating if two bits are completely identical.
+     * Return a boolean indicating if two bitsets are completely identical.
      *
      * @param   b1          A bitset; REQUIRED
      * @param   b2          Another bitset; REQUIRED
@@ -667,7 +718,7 @@ EXPORT BitSet := MODULE
     EXPORT BitCapacity_t CountBitsSet(CONST BitSet_t b) := EMBED(C++)
         unsigned __int64    numBitsSet = 0;
 
-        for (size32_t bytePos = 0; bytePos < lenB; bytePos++)
+        for (uint32_t bytePos = 0; bytePos < lenB; bytePos++)
         {
             byte    val = static_cast<const byte*>(b)[bytePos];
 
@@ -803,8 +854,8 @@ EXPORT BitSet := MODULE
 
         if (num_bits > 0)
         {
-            const size32_t  shift = num_bits / 8;
-            const size32_t  offset = num_bits % 8;
+            const uint32_t  shift = num_bits / 8;
+            const uint32_t  offset = num_bits % 8;
 
             memset(__result, 0, __lenResult);
 
@@ -861,8 +912,8 @@ EXPORT BitSet := MODULE
 
         if (num_bits > 0)
         {
-            const size32_t  shift = num_bits / 8;
-            const size32_t  offset = num_bits % 8;
+            const uint32_t  shift = num_bits / 8;
+            const uint32_t  offset = num_bits % 8;
             const size_t    limit = lenB - shift - 1;
 
             memset(__result, 0, __lenResult);
@@ -917,8 +968,8 @@ EXPORT BitSet := MODULE
         #option pure;
 
         const bool  b1Receives = (lenB1 >= lenB2);
-        size32_t    largerNumBytes = 0;
-        size32_t    smallerNumBytes = 0;
+        uint32_t    largerNumBytes = 0;
+        uint32_t    smallerNumBytes = 0;
         const byte* largerPtr = NULL;
         const byte* smallerPtr = NULL;
 
@@ -942,7 +993,7 @@ EXPORT BitSet := MODULE
 
         byte*   outPtr = static_cast<byte*>(__result);
 
-        for (size32_t x = 0; x < largerNumBytes; x++)
+        for (uint32_t x = 0; x < largerNumBytes; x++)
         {
             if (x < smallerNumBytes)
             {
@@ -976,8 +1027,8 @@ EXPORT BitSet := MODULE
         #option pure;
 
         const bool  b1Receives = (lenB1 >= lenB2);
-        size32_t    largerNumBytes = 0;
-        size32_t    smallerNumBytes = 0;
+        uint32_t    largerNumBytes = 0;
+        uint32_t    smallerNumBytes = 0;
         const byte* largerPtr = NULL;
         const byte* smallerPtr = NULL;
 
@@ -1001,7 +1052,7 @@ EXPORT BitSet := MODULE
 
         byte*   outPtr = static_cast<byte*>(__result);
 
-        for (size32_t x = 0; x < largerNumBytes; x++)
+        for (uint32_t x = 0; x < largerNumBytes; x++)
         {
             if (x < smallerNumBytes)
             {
@@ -1035,8 +1086,8 @@ EXPORT BitSet := MODULE
         #option pure;
 
         const bool  b1Receives = (lenB1 >= lenB2);
-        size32_t    largerNumBytes = 0;
-        size32_t    smallerNumBytes = 0;
+        uint32_t    largerNumBytes = 0;
+        uint32_t    smallerNumBytes = 0;
         const byte* largerPtr = NULL;
         const byte* smallerPtr = NULL;
 
@@ -1060,7 +1111,7 @@ EXPORT BitSet := MODULE
 
         byte*   outPtr = static_cast<byte*>(__result);
 
-        for (size32_t x = 0; x < largerNumBytes; x++)
+        for (uint32_t x = 0; x < largerNumBytes; x++)
         {
             if (x < smallerNumBytes)
             {
@@ -1096,7 +1147,7 @@ EXPORT BitSet := MODULE
 
         byte*   outPtr = static_cast<byte*>(__result);
 
-        for (size32_t x = 0; x < lenB; x++)
+        for (uint32_t x = 0; x < lenB; x++)
         {
             *outPtr++ = ~(static_cast<const byte*>(b)[x]);
         }
