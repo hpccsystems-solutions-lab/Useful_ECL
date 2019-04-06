@@ -71,7 +71,7 @@
  *      DATASET(BitPositionsRec) BitsSetPositions(CONST BitSet_t b);
  */
 
-EXPORT BitSet := MODULE
+EXPORT BitSet := MODULE, FORWARD
 
     // Typedefs
     EXPORT BitSet_t := DATA;
@@ -149,7 +149,7 @@ EXPORT BitSet := MODULE
         const byte*     inData = static_cast<const byte*>(b);
         const char      hexchar[] = "0123456789ABCDEF";
 
-        for (uint32_t x = 0; x < lenB; x++)
+        for (__int64 x = lenB - 1; x >= 0; x--)
         {
             *outPtr++ = hexchar[inData[x] >> 4];
             *outPtr++ = hexchar[inData[x] & 0x0F];
@@ -158,7 +158,9 @@ EXPORT BitSet := MODULE
 
     /**
      * Return a binary representation of a bitset as a string of ones and
-     * zeros.
+     * zeros.  Note that the result's length will always be a multiple of
+     * eight, rounded up from the number of bits requested for the bitset if
+     * necessary.
      *
      * @param   b           A bitset; REQUIRED
      *
@@ -1174,5 +1176,100 @@ EXPORT BitSet := MODULE
      * @see     BitwiseNOT
      */
     EXPORT BitSet_t BitwiseDIFF(CONST BitSet_t b1, CONST BitSet_t b2) := BitwiseAND(b1, BitwiseNOT(b2));
+
+    EXPORT _Tests := MODULE
+
+        SHARED smallBitset := New(23);
+        SHARED grownSmallBitSet := ReserveCapacity(smallBitset, 39);
+        SHARED intBitset := NewFromIntValue(5, 4);
+        SHARED strBitset := NewFromStrValue('0101', 4);
+        SHARED bitPositions := DATASET([0, 2], BitPositionsRec);
+        SHARED bitPosBitset := NewFromBitPositions(bitPositions, 4);
+        SHARED allIntBitsSetOn := SetAllBits(intBitset, TRUE);
+        SHARED allIntBitsSetOff := SetAllBits(intBitset, FALSE);
+        SHARED intBitsetSet4 := SetBit(intBitset, 4, TRUE);
+        SHARED intBitsetCleared4 := SetBit(intBitsetSet4, 4, FALSE);
+        SHARED intFlipped1 := FlipBit(intBitset, 4);
+        SHARED intFlipped2 := FlipBit(intFlipped1, 4);
+        SHARED intReserved := ReserveCapacity(intBitset, 17);
+
+        EXPORT TestSimple := [
+                ASSERT(Capacity(smallBitset) = 24),
+                ASSERT(Footprint(smallBitset) = 3),
+
+                ASSERT(Capacity(grownSmallBitSet) = 40),
+                ASSERT(Footprint(grownSmallBitSet) = 5),
+
+                ASSERT(AsHexString(intBitset) = '05');
+                ASSERT(AsBinaryString(intBitset) = '00000101');
+                ASSERT(AsUnsigned(intBitset) = 5);
+
+                ASSERT(Capacity(intBitset) = 8);
+                ASSERT(Footprint(intBitset) = 1);
+                ASSERT(TestBit(intBitset, 0) = TRUE);
+                ASSERT(TestBit(intBitset, 1) = FALSE);
+                ASSERT(TestBit(intBitset, 2) = TRUE);
+                ASSERT(TestBit(intBitset, 3) = FALSE);
+                ASSERT(TestBit(intBitset, 4) = FALSE);
+                ASSERT(TestBit(intBitset, 5) = FALSE);
+                ASSERT(TestBit(intBitset, 6) = FALSE);
+                ASSERT(TestBit(intBitset, 7) = FALSE);
+
+                ASSERT(Capacity(strBitset) = 8);
+                ASSERT(Footprint(strBitset) = 1);
+                ASSERT(TestBit(strBitset, 0) = TRUE);
+                ASSERT(TestBit(strBitset, 1) = FALSE);
+                ASSERT(TestBit(strBitset, 2) = TRUE);
+                ASSERT(TestBit(strBitset, 3) = FALSE);
+                ASSERT(TestBit(strBitset, 4) = FALSE);
+                ASSERT(TestBit(strBitset, 5) = FALSE);
+                ASSERT(TestBit(strBitset, 6) = FALSE);
+                ASSERT(TestBit(strBitset, 7) = FALSE);
+
+                ASSERT(Capacity(bitPosBitset) = 8);
+                ASSERT(Footprint(bitPosBitset) = 1);
+                ASSERT(TestBit(bitPosBitset, 0) = TRUE);
+                ASSERT(TestBit(bitPosBitset, 1) = FALSE);
+                ASSERT(TestBit(bitPosBitset, 2) = TRUE);
+                ASSERT(TestBit(bitPosBitset, 3) = FALSE);
+                ASSERT(TestBit(bitPosBitset, 4) = FALSE);
+                ASSERT(TestBit(bitPosBitset, 5) = FALSE);
+                ASSERT(TestBit(bitPosBitset, 6) = FALSE);
+                ASSERT(TestBit(bitPosBitset, 7) = FALSE);
+
+                ASSERT(TestBit(allIntBitsSetOn, 0) = TRUE);
+                ASSERT(TestBit(allIntBitsSetOn, 1) = TRUE);
+                ASSERT(TestBit(allIntBitsSetOn, 2) = TRUE);
+                ASSERT(TestBit(allIntBitsSetOn, 3) = TRUE);
+                ASSERT(TestBit(allIntBitsSetOn, 4) = TRUE);
+                ASSERT(TestBit(allIntBitsSetOn, 5) = TRUE);
+                ASSERT(TestBit(allIntBitsSetOn, 6) = TRUE);
+                ASSERT(TestBit(allIntBitsSetOn, 7) = TRUE);
+
+                ASSERT(TestBit(allIntBitsSetOff, 0) = FALSE);
+                ASSERT(TestBit(allIntBitsSetOff, 1) = FALSE);
+                ASSERT(TestBit(allIntBitsSetOff, 2) = FALSE);
+                ASSERT(TestBit(allIntBitsSetOff, 3) = FALSE);
+                ASSERT(TestBit(allIntBitsSetOff, 4) = FALSE);
+                ASSERT(TestBit(allIntBitsSetOff, 5) = FALSE);
+                ASSERT(TestBit(allIntBitsSetOff, 6) = FALSE);
+                ASSERT(TestBit(allIntBitsSetOff, 7) = FALSE);
+
+                ASSERT(TestBit(intBitsetSet4, 4) = TRUE);
+                ASSERT(TestBit(intBitsetCleared4, 4) = FALSE);
+
+                ASSERT(TestBit(intFlipped1, 4) = TRUE);
+                ASSERT(TestBit(intFlipped2, 4) = FALSE);
+
+                ASSERT(AsHexString(intReserved) = '000005');
+                ASSERT(AsBinaryString(intReserved) = '000000000000000000000101');
+                ASSERT(AsUnsigned(intReserved) = 5);
+
+                ASSERT(TRUE)
+            ];
+
+        EXPORT TestAll := [EVALUATE(TestSimple)];
+
+    END;
 
 END;
