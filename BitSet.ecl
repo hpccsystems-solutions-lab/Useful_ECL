@@ -1193,77 +1193,124 @@ EXPORT BitSet := MODULE, FORWARD
         SHARED intFlipped2 := FlipBit(intFlipped1, 4);
         SHARED intReserved := ReserveCapacity(intBitset, 17);
 
+        SHARED AreBitSetPositionsSame(DATASET(BitPositionsRec) s1, DATASET(BitPositionsRec) s2) := FUNCTION
+            sameLength := COUNT(s1) = COUNT(s2);
+            sortedS1 := SORT(s1, bitPos);
+            sortedS2 := SORT(s2, bitPos);
+            sameTest := DATASET
+                (
+                    COUNT(sortedS1),
+                    TRANSFORM
+                        (
+                            {BOOLEAN isSame},
+                            SELF.isSame := sortedS1[COUNTER].bitPos = sortedS2[COUNTER].bitPos
+                        )
+                );
+            allSameDS := ROLLUP
+                (
+                    sameTest,
+                    TRUE,
+                    TRANSFORM
+                        (
+                            RECORDOF(LEFT),
+                            SELF.isSame := LEFT.isSame = RIGHT.isSame
+                        )
+                );
+
+            RETURN sameLength AND allSameDS[1].isSame;
+        END;
+
         EXPORT TestSimple := [
-                ASSERT(Capacity(smallBitset) = 24),
-                ASSERT(Footprint(smallBitset) = 3),
+                ASSERT(Capacity(smallBitset) = 24, FAIL);
+                ASSERT(Footprint(smallBitset) = 3, FAIL);
 
-                ASSERT(Capacity(grownSmallBitSet) = 40),
-                ASSERT(Footprint(grownSmallBitSet) = 5),
+                ASSERT(Capacity(grownSmallBitSet) = 40, FAIL);
+                ASSERT(Footprint(grownSmallBitSet) = 5, FAIL);
 
-                ASSERT(AsHexString(intBitset) = '05');
-                ASSERT(AsBinaryString(intBitset) = '00000101');
-                ASSERT(AsUnsigned(intBitset) = 5);
+                ASSERT(AsHexString(intBitset) = '05', FAIL);
+                ASSERT(AsBinaryString(intBitset) = '00000101', FAIL);
+                ASSERT(AsUnsigned(intBitset) = 5, FAIL);
 
-                ASSERT(Capacity(intBitset) = 8);
-                ASSERT(Footprint(intBitset) = 1);
-                ASSERT(TestBit(intBitset, 0) = TRUE);
-                ASSERT(TestBit(intBitset, 1) = FALSE);
-                ASSERT(TestBit(intBitset, 2) = TRUE);
-                ASSERT(TestBit(intBitset, 3) = FALSE);
-                ASSERT(TestBit(intBitset, 4) = FALSE);
-                ASSERT(TestBit(intBitset, 5) = FALSE);
-                ASSERT(TestBit(intBitset, 6) = FALSE);
-                ASSERT(TestBit(intBitset, 7) = FALSE);
+                ASSERT(Capacity(intBitset) = 8, FAIL);
+                ASSERT(Footprint(intBitset) = 1, FAIL);
+                ASSERT(TestBit(intBitset, 0) = TRUE, FAIL);
+                ASSERT(TestBit(intBitset, 1) = FALSE, FAIL);
+                ASSERT(TestBit(intBitset, 2) = TRUE, FAIL);
+                ASSERT(TestBit(intBitset, 3) = FALSE, FAIL);
+                ASSERT(TestBit(intBitset, 4) = FALSE, FAIL);
+                ASSERT(TestBit(intBitset, 5) = FALSE, FAIL);
+                ASSERT(TestBit(intBitset, 6) = FALSE, FAIL);
+                ASSERT(TestBit(intBitset, 7) = FALSE, FAIL);
 
-                ASSERT(Capacity(strBitset) = 8);
-                ASSERT(Footprint(strBitset) = 1);
-                ASSERT(TestBit(strBitset, 0) = TRUE);
-                ASSERT(TestBit(strBitset, 1) = FALSE);
-                ASSERT(TestBit(strBitset, 2) = TRUE);
-                ASSERT(TestBit(strBitset, 3) = FALSE);
-                ASSERT(TestBit(strBitset, 4) = FALSE);
-                ASSERT(TestBit(strBitset, 5) = FALSE);
-                ASSERT(TestBit(strBitset, 6) = FALSE);
-                ASSERT(TestBit(strBitset, 7) = FALSE);
+                ASSERT(Capacity(strBitset) = 8, FAIL);
+                ASSERT(Footprint(strBitset) = 1, FAIL);
+                ASSERT(TestBit(strBitset, 0) = TRUE, FAIL);
+                ASSERT(TestBit(strBitset, 1) = FALSE, FAIL);
+                ASSERT(TestBit(strBitset, 2) = TRUE, FAIL);
+                ASSERT(TestBit(strBitset, 3) = FALSE, FAIL);
+                ASSERT(TestBit(strBitset, 4) = FALSE, FAIL);
+                ASSERT(TestBit(strBitset, 5) = FALSE, FAIL);
+                ASSERT(TestBit(strBitset, 6) = FALSE, FAIL);
+                ASSERT(TestBit(strBitset, 7) = FALSE, FAIL);
 
-                ASSERT(Capacity(bitPosBitset) = 8);
-                ASSERT(Footprint(bitPosBitset) = 1);
-                ASSERT(TestBit(bitPosBitset, 0) = TRUE);
-                ASSERT(TestBit(bitPosBitset, 1) = FALSE);
-                ASSERT(TestBit(bitPosBitset, 2) = TRUE);
-                ASSERT(TestBit(bitPosBitset, 3) = FALSE);
-                ASSERT(TestBit(bitPosBitset, 4) = FALSE);
-                ASSERT(TestBit(bitPosBitset, 5) = FALSE);
-                ASSERT(TestBit(bitPosBitset, 6) = FALSE);
-                ASSERT(TestBit(bitPosBitset, 7) = FALSE);
+                ASSERT(Capacity(bitPosBitset) = 8, FAIL);
+                ASSERT(Footprint(bitPosBitset) = 1, FAIL);
+                ASSERT(TestBit(bitPosBitset, 0) = TRUE, FAIL);
+                ASSERT(TestBit(bitPosBitset, 1) = FALSE, FAIL);
+                ASSERT(TestBit(bitPosBitset, 2) = TRUE, FAIL);
+                ASSERT(TestBit(bitPosBitset, 3) = FALSE, FAIL);
+                ASSERT(TestBit(bitPosBitset, 4) = FALSE, FAIL);
+                ASSERT(TestBit(bitPosBitset, 5) = FALSE, FAIL);
+                ASSERT(TestBit(bitPosBitset, 6) = FALSE, FAIL);
+                ASSERT(TestBit(bitPosBitset, 7) = FALSE, FAIL);
 
-                ASSERT(TestBit(allIntBitsSetOn, 0) = TRUE);
-                ASSERT(TestBit(allIntBitsSetOn, 1) = TRUE);
-                ASSERT(TestBit(allIntBitsSetOn, 2) = TRUE);
-                ASSERT(TestBit(allIntBitsSetOn, 3) = TRUE);
-                ASSERT(TestBit(allIntBitsSetOn, 4) = TRUE);
-                ASSERT(TestBit(allIntBitsSetOn, 5) = TRUE);
-                ASSERT(TestBit(allIntBitsSetOn, 6) = TRUE);
-                ASSERT(TestBit(allIntBitsSetOn, 7) = TRUE);
+                ASSERT(TestBit(allIntBitsSetOn, 0) = TRUE, FAIL);
+                ASSERT(TestBit(allIntBitsSetOn, 1) = TRUE, FAIL);
+                ASSERT(TestBit(allIntBitsSetOn, 2) = TRUE, FAIL);
+                ASSERT(TestBit(allIntBitsSetOn, 3) = TRUE, FAIL);
+                ASSERT(TestBit(allIntBitsSetOn, 4) = TRUE, FAIL);
+                ASSERT(TestBit(allIntBitsSetOn, 5) = TRUE, FAIL);
+                ASSERT(TestBit(allIntBitsSetOn, 6) = TRUE, FAIL);
+                ASSERT(TestBit(allIntBitsSetOn, 7) = TRUE, FAIL);
 
-                ASSERT(TestBit(allIntBitsSetOff, 0) = FALSE);
-                ASSERT(TestBit(allIntBitsSetOff, 1) = FALSE);
-                ASSERT(TestBit(allIntBitsSetOff, 2) = FALSE);
-                ASSERT(TestBit(allIntBitsSetOff, 3) = FALSE);
-                ASSERT(TestBit(allIntBitsSetOff, 4) = FALSE);
-                ASSERT(TestBit(allIntBitsSetOff, 5) = FALSE);
-                ASSERT(TestBit(allIntBitsSetOff, 6) = FALSE);
-                ASSERT(TestBit(allIntBitsSetOff, 7) = FALSE);
+                ASSERT(TestBit(allIntBitsSetOff, 0) = FALSE, FAIL);
+                ASSERT(TestBit(allIntBitsSetOff, 1) = FALSE, FAIL);
+                ASSERT(TestBit(allIntBitsSetOff, 2) = FALSE, FAIL);
+                ASSERT(TestBit(allIntBitsSetOff, 3) = FALSE, FAIL);
+                ASSERT(TestBit(allIntBitsSetOff, 4) = FALSE, FAIL);
+                ASSERT(TestBit(allIntBitsSetOff, 5) = FALSE, FAIL);
+                ASSERT(TestBit(allIntBitsSetOff, 6) = FALSE, FAIL);
+                ASSERT(TestBit(allIntBitsSetOff, 7) = FALSE, FAIL);
 
-                ASSERT(TestBit(intBitsetSet4, 4) = TRUE);
-                ASSERT(TestBit(intBitsetCleared4, 4) = FALSE);
+                ASSERT(TestBit(intBitsetSet4, 4) = TRUE, FAIL);
+                ASSERT(TestBit(intBitsetCleared4, 4) = FALSE, FAIL);
 
-                ASSERT(TestBit(intFlipped1, 4) = TRUE);
-                ASSERT(TestBit(intFlipped2, 4) = FALSE);
+                ASSERT(TestBit(intFlipped1, 4) = TRUE, FAIL);
+                ASSERT(TestBit(intFlipped2, 4) = FALSE, FAIL);
 
-                ASSERT(AsHexString(intReserved) = '000005');
-                ASSERT(AsBinaryString(intReserved) = '000000000000000000000101');
-                ASSERT(AsUnsigned(intReserved) = 5);
+                ASSERT(AsHexString(intReserved) = '000005', FAIL);
+                ASSERT(AsBinaryString(intReserved) = '000000000000000000000101', FAIL);
+                ASSERT(AsUnsigned(intReserved) = 5, FAIL);
+
+                ASSERT(TestBits(intBitset, intReserved) = TRUE, FAIL);
+                ASSERT(TestBits(intReserved, intBitset) = TRUE, FAIL);
+                ASSERT(TestBits(intBitset, smallBitset) = TRUE, FAIL);
+                ASSERT(TestBits(smallBitset, intBitset) = FALSE, FAIL);
+
+                ASSERT(TestAnyBitsSet(intBitset) = TRUE, FAIL);
+                ASSERT(TestAnyBitsSet(smallBitset) = FALSE, FAIL);
+
+                ASSERT(TestNoBitsSet(intBitset) = FALSE, FAIL);
+                ASSERT(TestNoBitsSet(smallBitset) = TRUE, FAIL);
+
+                ASSERT(TestAllBitsSet(allIntBitsSetOn) = TRUE, FAIL);
+                ASSERT(TestAllBitsSet(allIntBitsSetOff) = FALSE, FAIL);
+
+                ASSERT(TestBitSetsEqual(intBitSet, strBitSet) = TRUE, FAIL);
+
+                ASSERT(CountBitsSet(intReserved) = 2, FAIL);
+
+                ASSERT(AreBitSetPositionsSame(BitsSetPositions(intBitset), bitPositions) = TRUE, FAIL);
 
                 ASSERT(TRUE)
             ];
