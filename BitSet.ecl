@@ -69,6 +69,13 @@
  *      // Inspection
  *      BitCapacity_t CountBitsSet(CONST BitSet_t b);
  *      DATASET(BitPositionsRec) BitsSetPositions(CONST BitSet_t b);
+ *
+ * Self tests are available.  To execute them, submit a job that contains
+ * the following line:
+ *
+ *      BitSet._Tests.TestAll;
+ *
+ * All tests pass if the workunit completes successfully (there is no output).
  */
 
 EXPORT BitSet := MODULE, FORWARD
