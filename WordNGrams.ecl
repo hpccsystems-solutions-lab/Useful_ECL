@@ -3,9 +3,6 @@
  * The result is a dataset containing the n-grams as strings.  Multiple n-grams
  * (e.g. unigrams, bigrams, trigrams, etc) can be generated with one call.
  *
- * Note that this module requires HPCC Platform 7.0.0 or later, as it uses
- * C++11's regex functionality.
- *
  * Exported record definition:
  *
  *      WordNGramLayout
@@ -56,10 +53,10 @@ EXPORT WordNGrams := MODULE
     EXPORT STREAMED DATASET(WordNGramLayout) GenerateWordNGrams(CONST STRING s, UNSIGNED1 min_gram = 1, UNSIGNED1 max_gram = 1) := EMBED(C++)
         #option pure;
 
-        // Requires C++11
-        #include <regex>
         #include <string>
         #include <vector>
+
+        #define IS_DELIMITER(x) ((::ispunct(x) != 0 && _inputString[pos] != '\'') || ::isspace(x))
 
         class StreamDataset : public RtlCInterface, implements IRowStream
         {
@@ -68,19 +65,49 @@ EXPORT WordNGrams := MODULE
                 StreamDataset(IEngineRowAllocator* _resultAllocator, const char* _inputString, uint32_t _inputStringLen, uint32_t _minGram, uint32_t _maxGram)
                     : resultAllocator(_resultAllocator)
                 {
-                    // Populate word list
-                    uint32_t                    myMinGram = (_minGram > 0 ? _minGram : 1);
-                    uint32_t                    myMaxGram = (_maxGram >= _minGram ? _maxGram : _minGram);
-                    std::string                 inputString(_inputString, _inputStringLen);
-                    std::regex                  ws("((?!')[[:punct:]\\s])+"); // any punctuation other than apostrophe
-                    std::sregex_token_iterator  wordIter(inputString.begin(), inputString.end(), ws, -1);
+                    int32_t     startPos = -1;
 
-                    std::copy(wordIter, std::sregex_token_iterator(), std::back_inserter(wordList));
+                    for (uint32_t pos = 0; pos < _inputStringLen; pos++)
+                    {
+                        if (!IS_DELIMITER(_inputString[pos]))
+                        {
+                            startPos = pos;
+                            break;
+                        }
+                    }
 
-                    // Remove empty strings
-                    wordList.erase(std::remove(wordList.begin(), wordList.end(), std::string()), wordList.end());
+                    if (startPos >= 0)
+                    {
+                        uint32_t    wordPos = startPos;
+                        bool        lastCharWasDelim = false;
 
-                    isStopped = (inputString.length() == 0 || wordList.size() == 0);
+                        for (uint32_t pos = startPos + 1; pos < _inputStringLen; pos++)
+                        {
+                            if (IS_DELIMITER(_inputString[pos]))
+                            {
+                                if (!lastCharWasDelim)
+                                {
+                                    wordList.push_back(std::string(&_inputString[wordPos], pos-wordPos));
+                                }
+                                lastCharWasDelim = true;
+                            }
+                            else
+                            {
+                                if (lastCharWasDelim)
+                                {
+                                    wordPos = pos;
+                                    lastCharWasDelim = false;
+                                }
+                            }
+                        }
+
+                        if (!lastCharWasDelim && wordPos < _inputStringLen)
+                        {
+                            wordList.push_back(std::string(&_inputString[wordPos], _inputStringLen-wordPos));
+                        }
+                    }
+
+                    isStopped = (_inputStringLen == 0 || wordList.size() == 0);
                     minGram = (_minGram > 0 ? _minGram : 1);
                     maxGram = (_maxGram >= _minGram ? _maxGram : _minGram);
                     currentWord = 0;
