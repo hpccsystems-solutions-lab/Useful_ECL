@@ -34,6 +34,7 @@ well-commented.
 * [Str.ecl](Str.ecl)
 * [UUID.ecl](UUID.ecl)
 * [WholeUpdate.ecl](WholeUpdate.ecl)
+* [WordNGrams.ecl](WordNGrams.ecl)
 
 ### Configuration
 * [BWR_ShowInstalledPlugins.ecl](BWR/BWR_ShowInstalledPlugins.ecl)
