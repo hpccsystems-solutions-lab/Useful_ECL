@@ -3,7 +3,7 @@
  * The result is a dataset containing the n-grams as strings.  Multiple n-grams
  * (e.g. unigrams, bigrams, trigrams, etc) can be generated with one call.
  *
- * Note that this module requires HPCC Platform 7.2.0 or later, as it uses
+ * Note that this module requires HPCC Platform 7.0.0 or later, as it uses
  * C++11's regex functionality.
  *
  * Exported record definition:
