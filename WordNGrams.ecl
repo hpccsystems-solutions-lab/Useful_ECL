@@ -29,8 +29,8 @@ EXPORT WordNGrams := MODULE
 
     /**
      * Generates word n-grams from an input string.  A word delimiter is defined
-     * as any punctuation character other than an apostrophe.  Runs of word
-     * delimiters are treated as a single delimiter.
+     * as a space or any punctuation character other than an apostrophe.  Runs
+     * of word delimiters are treated as a single delimiter.
      *
      * Multiple n-grams (e.g. unigrams, bigrams, etc) can be generated in the
      * same call by adjusting the min_gram and max_gram argument values.
