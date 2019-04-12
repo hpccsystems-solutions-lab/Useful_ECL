@@ -3,6 +3,10 @@
  * The result is a dataset containing the n-grams as strings.  Multiple n-grams
  * (e.g. unigrams, bigrams, trigrams, etc) can be generated with one call.
  *
+ * Exported record definition:
+ *
+ *      WordNGramLayout
+ *
  * Exported functions:
  *
  *      GenerateWordNGrams
