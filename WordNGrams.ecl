@@ -56,7 +56,7 @@ EXPORT WordNGrams := MODULE
         #include <string>
         #include <vector>
 
-        #define IS_DELIMITER(x) ((::ispunct(x) != 0 && _inputString[pos] != '\'') || ::isspace(x))
+        #define IS_DELIMITER(x) ((::ispunct(x) != 0 && x != '\'') || ::isspace(x))
 
         class StreamDataset : public RtlCInterface, implements IRowStream
         {
