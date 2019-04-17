@@ -35,14 +35,18 @@ EXPORT WordNGrams := MODULE
      * Multiple n-grams (e.g. unigrams, bigrams, etc) can be generated in the
      * same call by adjusting the min_gram and max_gram argument values.
      *
-     * @param   s           The string to process; REQUIRED
-     * @param   min_gram    The smallest n-gram to include in the output;
-     *                      a zero value will be treated as a one value;
-     *                      OPTIONAL, defaults to 1 (unigram)
-     * @param   max_gram    The largest n-gram to include in the output;
-     *                      if provided and less than the (possibly adjusted)
-     *                      value of min_gram, will be set to min_gram;
-     *                      OPTIONAL, defaults to 1 (unigram)
+     * @param   s               The string to process; REQUIRED
+     * @param   min_gram        The smallest n-gram to include in the output;
+     *                          a zero value will be treated as a one value;
+     *                          OPTIONAL, defaults to 1 (unigram)
+     * @param   max_gram        The largest n-gram to include in the output;
+     *                          if provided and less than the (possibly
+     *                          adjusted) value of min_gram, will be set to
+     *                          min_gram; OPTIONAL, defaults to 1 (unigram)
+     * @param   min_word_len    The minimum length of a word that will be
+     *                          processed; words less than this length will be
+     *                          ignored when creating the ngrams; OPTIONAL,
+     *                          defaults to 1
      *
      * @return  A dataset containing all n-grams generated from s.
      *
@@ -50,7 +54,7 @@ EXPORT WordNGrams := MODULE
      * @see     GenerateWordBigrams
      * @see     GenerateWordTrigrams
      */
-    EXPORT STREAMED DATASET(WordNGramLayout) GenerateWordNGrams(CONST STRING s, UNSIGNED1 min_gram = 1, UNSIGNED1 max_gram = 1) := EMBED(C++)
+    EXPORT STREAMED DATASET(WordNGramLayout) GenerateWordNGrams(CONST STRING s, UNSIGNED1 min_gram = 1, UNSIGNED1 max_gram = 1, UNSIGNED1 min_word_len = 1) := EMBED(C++)
         #option pure;
 
         #include <string>
@@ -62,7 +66,7 @@ EXPORT WordNGrams := MODULE
         {
             public:
 
-                StreamDataset(IEngineRowAllocator* _resultAllocator, const char* _inputString, uint32_t _inputStringLen, uint32_t _minGram, uint32_t _maxGram)
+                StreamDataset(IEngineRowAllocator* _resultAllocator, const char* _inputString, uint32_t _inputStringLen, uint32_t _minGram, uint32_t _maxGram, uint32_t _minWordLen)
                     : resultAllocator(_resultAllocator)
                 {
                     int32_t     startPos = -1;
@@ -85,7 +89,7 @@ EXPORT WordNGrams := MODULE
                         {
                             if (IS_DELIMITER(_inputString[pos]))
                             {
-                                if (!lastCharWasDelim)
+                                if (!lastCharWasDelim && pos-wordPos >= _minWordLen)
                                 {
                                     wordList.push_back(std::string(&_inputString[wordPos], pos-wordPos));
                                 }
@@ -101,7 +105,7 @@ EXPORT WordNGrams := MODULE
                             }
                         }
 
-                        if (!lastCharWasDelim && wordPos < _inputStringLen)
+                        if (!lastCharWasDelim && wordPos < _inputStringLen && _inputStringLen-wordPos >= _minWordLen)
                         {
                             wordList.push_back(std::string(&_inputString[wordPos], _inputStringLen-wordPos));
                         }
@@ -110,6 +114,7 @@ EXPORT WordNGrams := MODULE
                     isStopped = (_inputStringLen == 0 || wordList.size() == 0);
                     minGram = (_minGram > 0 ? _minGram : 1);
                     maxGram = (_maxGram >= _minGram ? _maxGram : _minGram);
+                    minWordLen = _minWordLen;
                     currentWord = 0;
                     currentGram = minGram;
                 }
@@ -173,6 +178,7 @@ EXPORT WordNGrams := MODULE
                 bool                        isStopped;
                 uint32_t                    minGram;
                 uint32_t                    maxGram;
+                uint32_t                    minWordLen;
                 uint32_t                    currentWord;
                 uint32_t                    currentGram;
                 std::vector<std::string>    wordList;
@@ -180,13 +186,17 @@ EXPORT WordNGrams := MODULE
 
         #body
 
-        return new StreamDataset(_resultAllocator, s, lenS, min_gram, max_gram);
+        return new StreamDataset(_resultAllocator, s, lenS, min_gram, max_gram, min_word_len);
     ENDEMBED;
 
     /**
      * Helper function that simplifies the generation of unigrams.
      *
-     * @param   s           The string to process; REQUIRED
+     * @param   s               The string to process; REQUIRED
+     * @param   min_word_len    The minimum length of a word that will be
+     *                          processed; words less than this length will be
+     *                          ignored when creating the ngrams; OPTIONAL,
+     *                          defaults to 1
      *
      * @return  A dataset containing all unigrams generated from s.
      *
@@ -194,12 +204,16 @@ EXPORT WordNGrams := MODULE
      * @see     GenerateWordBigrams
      * @see     GenerateWordTrigrams
      */
-    EXPORT STREAMED DATASET(WordNGramLayout) GenerateWordUnigrams(CONST STRING s) := GenerateWordNGrams(s, 1, 1);
+    EXPORT STREAMED DATASET(WordNGramLayout) GenerateWordUnigrams(CONST STRING s, UNSIGNED1 min_word_len = 1) := GenerateWordNGrams(s, 1, 1, min_word_len);
 
     /**
      * Helper function that simplifies the generation of bigrams.
      *
-     * @param   s           The string to process; REQUIRED
+     * @param   s               The string to process; REQUIRED
+     * @param   min_word_len    The minimum length of a word that will be
+     *                          processed; words less than this length will be
+     *                          ignored when creating the ngrams; OPTIONAL,
+     *                          defaults to 1
      *
      * @return  A dataset containing all bigrams generated from s.
      *
@@ -207,12 +221,16 @@ EXPORT WordNGrams := MODULE
      * @see     GenerateWordUnigrams
      * @see     GenerateWordTrigrams
      */
-    EXPORT STREAMED DATASET(WordNGramLayout) GenerateWordBigrams(CONST STRING s) := GenerateWordNGrams(s, 2, 2);
+    EXPORT STREAMED DATASET(WordNGramLayout) GenerateWordBigrams(CONST STRING s, UNSIGNED1 min_word_len = 1) := GenerateWordNGrams(s, 2, 2, min_word_len);
 
     /**
      * Helper function that simplifies the generation of trigrams.
      *
-     * @param   s           The string to process; REQUIRED
+     * @param   s               The string to process; REQUIRED
+     * @param   min_word_len    The minimum length of a word that will be
+     *                          processed; words less than this length will be
+     *                          ignored when creating the ngrams; OPTIONAL,
+     *                          defaults to 1
      *
      * @return  A dataset containing all trigrams generated from s.
      *
@@ -220,14 +238,14 @@ EXPORT WordNGrams := MODULE
      * @see     GenerateWordUnigrams
      * @see     GenerateWordBigrams
      */
-    EXPORT STREAMED DATASET(WordNGramLayout) GenerateWordTrigrams(CONST STRING s) := GenerateWordNGrams(s, 3, 3);
+    EXPORT STREAMED DATASET(WordNGramLayout) GenerateWordTrigrams(CONST STRING s, UNSIGNED1 min_word_len = 1) := GenerateWordNGrams(s, 3, 3, min_word_len);
 
 END;
 
 /**
  * Sample calls:
  *
- * res1 := GenerateWordNGrams('The quick brown fox jumped over the lazy dog.', 1, 9);
+ * res1 := WordNGrams.GenerateWordNGrams('The quick brown fox jumped over the lazy dog.', 1, 9);
  * OUTPUT(res1);
  *
  * Result:
@@ -278,7 +296,7 @@ END;
  * lazy dog
  * dog
  *
- * res2 := GenerateWordBigrams('The quick brown fox jumped over the lazy dog.');
+ * res2 := WordNGrams.GenerateWordBigrams('The quick brown fox jumped over the lazy dog.');
  * OUTPUT(res2);
  *
  * Result:
