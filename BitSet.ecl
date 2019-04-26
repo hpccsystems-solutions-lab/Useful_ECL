@@ -215,6 +215,8 @@ EXPORT BitSet := MODULE, FORWARD
      * @see     AsBinaryString
      */
     EXPORT LITTLE_ENDIAN UNSIGNED8 AsUnsigned(CONST BitSet_t b) := EMBED(C++)
+        #option pure;
+
         unsigned __int64    result = 0;
         const uint32_t      numBytesToCopy = (lenB < 8 ? lenB : 8);
 
@@ -274,7 +276,7 @@ EXPORT BitSet := MODULE, FORWARD
      * @see     NewFromBitPositions
      */
     EXPORT BitSet_t NewFromIntValue(LITTLE_ENDIAN UNSIGNED8 n, BitCapacity_t bit_capacity = 64) := EMBED(C++)
-        #option pure
+        #option pure;
 
         const uint32_t  bytesNeeded = bit_capacity / 8 + (bit_capacity % 8 != 0 ? 1 : 0);
         const uint32_t  numBytesToCopy = (bytesNeeded < sizeof(n) ? bytesNeeded : sizeof(n));
@@ -631,6 +633,8 @@ EXPORT BitSet := MODULE, FORWARD
      * @see     TestBitSetsEqual
      */
     EXPORT BOOLEAN TestAnyBitsSet(CONST BitSet_t b) := EMBED(C++)
+        #option pure;
+
         for (uint32_t bytePos = 0; bytePos < lenB; bytePos++)
         {
             const byte  val = static_cast<const byte*>(b)[bytePos];
@@ -658,6 +662,8 @@ EXPORT BitSet := MODULE, FORWARD
      * @see     TestBitSetsEqual
      */
     EXPORT BOOLEAN TestNoBitsSet(CONST BitSet_t b) := EMBED(C++)
+        #option pure;
+
         for (uint32_t bytePos = 0; bytePos < lenB; bytePos++)
         {
             const byte  val = static_cast<const byte*>(b)[bytePos];
@@ -685,6 +691,8 @@ EXPORT BitSet := MODULE, FORWARD
      * @see     TestBitSetsEqual
      */
     EXPORT BOOLEAN TestAllBitsSet(CONST BitSet_t b) := EMBED(C++)
+        #option pure;
+
         for (uint32_t bytePos = 0; bytePos < lenB; bytePos++)
         {
             const byte  val = static_cast<const byte*>(b)[bytePos];
@@ -725,6 +733,8 @@ EXPORT BitSet := MODULE, FORWARD
      *          within <b>.
      */
     EXPORT BitCapacity_t CountBitsSet(CONST BitSet_t b) := EMBED(C++)
+        #option pure;
+
         unsigned __int64    numBitsSet = 0;
 
         for (uint32_t bytePos = 0; bytePos < lenB; bytePos++)
