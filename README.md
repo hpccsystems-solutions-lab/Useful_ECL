@@ -30,6 +30,7 @@ well-commented.
 * [RemoveAllSuperFileLogicalFiles.ecl](RemoveAllSuperFileLogicalFiles.ecl)
 * [RowFieldsOut.ecl](RowFieldsOut.ecl)
 * [ScalarArgType.ecl](ScalarArgType.ecl)
+* [ScopeContentsAsTempSuperFile.ecl](ScopeContentsAsTempSuperFile.ecl)
 * [Sets.ecl](Sets.ecl)
 * [Str.ecl](Str.ecl)
 * [UUID.ecl](UUID.ecl)
