@@ -15,59 +15,43 @@ IMPORT Std;
 EXPORT WorkunitExec := MODULE
 
     /**
-     * Helper function for encoding special characters in strings that will
-     * eventually make it into URLs.  The following characters are encoded:
-     *      % -> %25
-     *      @ -> %40
-     *      : -> %3A
-     *
-     * @param   s                   The string to encode; REQUIRED
-     *
-     * @return  The argument, encoded.
-     */
-    SHARED EncodeString(STRING s) := FUNCTION
-        s1 := REGEXREPLACE('%', s, '%25');
-        s2 := REGEXREPLACE('@', s1, '%40');
-        s3 := REGEXREPLACE(':', s2, '%3A');
-
-        RETURN s3;
-    END;
-
-    /**
-     * Helper function for creating a complete URL suitable for SOAPCALL
+     * Helper function for creating the Authorization header value for
+     * authenticated SOAPCALL requests.
      *
      * @param   username            The user name to use when connecting
-     *                              to the cluster; the special characters
-     *                              '%' and '@' should not be encoded; REQUIRED
-     * @param   userPW              The username password to use when
-     *                              connecting to the cluster; the special
-     *                              characters '%' and '@' should not be
-     *                              encoded; REQUIRED
-     * @param   espScheme           The scheme (http, https, etc) to use
-     *                              when constructing the full URL to the
-     *                              ESP service; REQUIRED
-     * @param   espIPAddress        The IP address of the ESP service, as
-     *                              a string; REQUIRED
-     * @param   espPort             The port number to use when connecting
      *                              to the cluster; REQUIRED
+     * @param   userPW              The username password to use when
+     *                              connecting to the cluster; REQUIRED
      *
-     * @return  A URL suitable for use in SOAPCALL invocations
+     * @return  Authorization header value, or an empty string if username
+     *          is empty (SOAPCALL omits the header if the return value
+     *          is an empty string).
      */
-    SHARED CreateESPURL(STRING username,
-                        STRING userPW,
-                        STRING espScheme,
-                        STRING espIPAddress,
-                        UNSIGNED2 espPort) := FUNCTION
-        fullUserInfo := MAP
-            (
-                username != '' AND userPW != '' => EncodeString(username) + ':' + EncodeString(userPW) + '@',
-                username != ''  =>  EncodeString(username) + '@',
-                ''
-            );
+    SHARED CreateAuthHeaderValue(STRING username, STRING userPW) := IF
+        (
+            TRIM(username, ALL) != '',
+            'Basic ' + Std.Str.EncodeBase64((DATA)(TRIM(username, ALL) + ':' + TRIM(userPW, ALL))),
+            ''
+        );
 
-        url := espScheme + '://' + TRIM(fullUserInfo, LEFT, RIGHT) + espIPAddress + ':' + (STRING)espPort + '/WsWorkunits/';
+    /**
+     * Helper function for ensuring we're using the right URL to contact
+     * the esp service.
+     *
+     * @param   espURL              The full URL for accessing the esp process
+     *                              running on the HPCC Systems cluster (this
+     *                              is typically the same URL as used to access
+     *                              ECL Watch); set to an empty string to use
+     *                              the URL of the current esp process;
+     *                              REQUIRED
+     *
+     * @return  The full URL for accessing the proper esp service.
+     */
+    SHARED CreateESPURL(STRING explicitURL) := FUNCTION
+        trimmedURL := TRIM(explicitURL, ALL);
+        myESPURL := IF(trimmedURL != '', trimmedURL, Std.File.GetEspURL()) + '/WsWorkunits/ver_=1.74';
 
-        RETURN url;
+        RETURN myESPURL;
     END;
 
     /**
@@ -106,15 +90,12 @@ EXPORT WorkunitExec := MODULE
      *
      * @param   jobName             The jobname of the workunit to execute
      *                              as a string; REQUIRED
-     * @param   espIPAddress        The IP address of the ESP service, as
-     *                              a string; REQUIRED
-     * @param   espScheme           The scheme (http, https, etc) to use
-     *                              when constructing the full URL to the
-     *                              ESP service; OPTIONAL, defaults
-     *                              to 'http'
-     * @param   espPort             The port number to use when connecting
-     *                              to the cluster; OPTIONAL, defaults to
-     *                              8010
+     * @param   espURL              The full URL for accessing the esp process
+     *                              running on the HPCC Systems cluster (this
+     *                              is typically the same URL as used to access
+     *                              ECL Watch); set to an empty string to use
+     *                              the URL of the current esp process;
+     *                              OPTIONAL, defaults to an empty string
      * @param   runArguments        Dataset in RunArgLayout format
      *                              containing key/value pairs of arguments
      *                              to pass to the workunit to execute;
@@ -144,15 +125,14 @@ EXPORT WorkunitExec := MODULE
      *          action context.
      */
     EXPORT RunCompiledWorkunitByName(STRING jobName,
-                                     STRING espIPAddress,
-                                     STRING espScheme = 'http',
-                                     UNSIGNED2 espPort = 8010,
+                                     STRING espURL = '',
                                      DATASET(RunArgLayout) runArguments = DATASET([], RunArgLayout),
                                      BOOLEAN waitForCompletion = FALSE,
                                      STRING username = '',
                                      STRING userPW = '',
                                      UNSIGNED2 timeoutInSeconds = 0) := FUNCTION
-        espURL := CreateESPURL(username, userPW, espScheme, espIPAddress, espPort);
+        myESPURL := CreateESPURL(espURL);
+        auth := CreateAuthHeaderValue(username, userPW);
 
         QueryResultsLayout := RECORD
             STRING  rWUID       {XPATH('Wuid')};
@@ -163,7 +143,7 @@ EXPORT WorkunitExec := MODULE
         // given jobName
         queryResults := SOAPCALL
             (
-                espURL,
+                myESPURL,
                 'WUQuery',
                 {
                     STRING pJobname {XPATH('Jobname')} := jobName;
@@ -171,6 +151,7 @@ EXPORT WorkunitExec := MODULE
                 },
                 DATASET(QueryResultsLayout),
                 XPATH('WUQueryResponse/Workunits/ECLWorkunit'),
+                HTTPHEADER('Authorization', auth),
                 TIMEOUT(60), ONFAIL(SKIP)
             );
         latestWUID := TOPN(queryResults, 1, -rWUID)[1];
@@ -178,7 +159,7 @@ EXPORT WorkunitExec := MODULE
         // Call the found workunit with the arguments provided
         runResults := SOAPCALL
             (
-                espURL,
+                myESPURL,
                 'WURun',
                 {
                     STRING pWUID {XPATH('Wuid')} := latestWUID.rWUID;
@@ -189,6 +170,7 @@ EXPORT WorkunitExec := MODULE
                 },
                 DATASET(RunResultsLayout),
                 XPATH('WURunResponse'),
+                HTTPHEADER('Authorization', auth),
                 TIMEOUT(timeoutInSeconds), ONFAIL(SKIP)
             );
 
@@ -201,15 +183,12 @@ EXPORT WorkunitExec := MODULE
      *
      * @param   jobName             The jobname of the workunit to execute
      *                              as a string; REQUIRED
-     * @param   espIPAddress        The IP address of the ESP service, as
-     *                              a string; REQUIRED
-     * @param   espScheme           The scheme (http, https, etc) to use
-     *                              when constructing the full URL to the
-     *                              ESP service; OPTIONAL, defaults
-     *                              to 'http'
-     * @param   espPort             The port number to use when connecting
-     *                              to the cluster; OPTIONAL, defaults to
-     *                              8010
+     * @param   espURL              The full URL for accessing the esp process
+     *                              running on the HPCC Systems cluster (this
+     *                              is typically the same URL as used to access
+     *                              ECL Watch); set to an empty string to use
+     *                              the URL of the current esp process;
+     *                              OPTIONAL, defaults to an empty string
      * @param   username            The user name to use when connecting
      *                              to the cluster; OPTIONAL, defaults to
      *                              an empty string
@@ -224,13 +203,12 @@ EXPORT WorkunitExec := MODULE
      *          a running workunit with that name cannot be found
      */
     EXPORT FindRunningWorkunitByName(STRING jobName,
-                                     STRING espIPAddress,
-                                     STRING espScheme = 'http',
-                                     UNSIGNED2 espPort = 8010,
+                                     STRING espURL = '',
                                      STRING username = '',
                                      STRING userPW = '',
                                      UNSIGNED2 timeoutInSeconds = 60) := FUNCTION
-        espURL := CreateESPURL(username, userPW, espScheme, espIPAddress, espPort);
+        myESPURL := CreateESPURL(espURL);
+        auth := CreateAuthHeaderValue(username, userPW);
 
         QueryResultsLayout := RECORD
             STRING  rWUID       {XPATH('Wuid')};
@@ -241,13 +219,14 @@ EXPORT WorkunitExec := MODULE
         // matches the given jobName
         queryResults := SOAPCALL
             (
-                espURL,
+                myESPURL,
                 'WUQuery',
                 {
                     STRING pJobname {XPATH('Jobname')} := jobName;
                 },
                 DATASET(QueryResultsLayout),
                 XPATH('WUQueryResponse/Workunits/ECLWorkunit'),
+                HTTPHEADER('Authorization', auth),
                 TIMEOUT(timeoutInSeconds), ONFAIL(SKIP)
             );
         latestWUID := TOPN(queryResults(rState IN ['running', 'blocked']), 1, -rWUID)[1];
@@ -261,15 +240,12 @@ EXPORT WorkunitExec := MODULE
      *
      * @param   clusterName         The name of the cluster in which to look
      *                              for running jobs; REQUIRED
-     * @param   espIPAddress        The IP address of the ESP service, as
-     *                              a string; REQUIRED
-     * @param   espScheme           The scheme (http, https, etc) to use
-     *                              when constructing the full URL to the
-     *                              ESP service; OPTIONAL, defaults
-     *                              to 'http'
-     * @param   espPort             The port number to use when connecting
-     *                              to the cluster; OPTIONAL, defaults to
-     *                              8010
+     * @param   espURL              The full URL for accessing the esp process
+     *                              running on the HPCC Systems cluster (this
+     *                              is typically the same URL as used to access
+     *                              ECL Watch); set to an empty string to use
+     *                              the URL of the current esp process;
+     *                              OPTIONAL, defaults to an empty string
      * @param   username            The user name to use when connecting
      *                              to the cluster; OPTIONAL, defaults to
      *                              an empty string
@@ -286,19 +262,19 @@ EXPORT WorkunitExec := MODULE
      *          have been found
      */
     EXPORT FindRunningWorkunitsInCluster(STRING clusterName,
-                                         STRING espIPAddress,
-                                         STRING espScheme = 'http',
-                                         UNSIGNED2 espPort = 8010,
+                                         STRING espURL = '',
                                          STRING username = '',
                                          STRING userPW = '',
                                          UNSIGNED2 timeoutInSeconds = 60) := FUNCTION
-        espURL := CreateESPURL(username, userPW, espScheme, espIPAddress, espPort);
+        myESPURL := CreateESPURL(espURL);
+        auth := CreateAuthHeaderValue(username, userPW);
 
         QueryResultsLayout := RECORD
             STRING  rWUID           {XPATH('Wuid')};
             STRING  rState          {XPATH('State')};
-            STRING  rClusterName    {XPATH('ClusterName')};
-            STRING  rJobname        {XPATH('JobName')};
+            STRING  rClusterName    {XPATH('Cluster')};
+            STRING  rJobname        {XPATH('Jobname')};
+            STRING  rOwner          {XPATH('Owner')};
             BOOLEAN thisWU := FALSE;
         END;
 
@@ -306,13 +282,14 @@ EXPORT WorkunitExec := MODULE
         // matches the given jobName
         queryResults0 := SOAPCALL
             (
-                espURL,
+                myESPURL,
                 'WUQuery',
                 {
                     STRING pClusterName {XPATH('Cluster')} := clusterName;
                 },
                 DATASET(QueryResultsLayout),
                 XPATH('WUQueryResponse/Workunits/ECLWorkunit'),
+                HTTPHEADER('Authorization', auth),
                 TIMEOUT(timeoutInSeconds), ONFAIL(SKIP)
             );
 
@@ -386,13 +363,12 @@ EXPORT WorkunitExec := MODULE
      */
     EXPORT ExtractWorkunitResultByName(STRING workunitID,
                                        STRING resultName,
-                                       STRING espIPAddress,
-                                       STRING espScheme = 'http',
-                                       UNSIGNED2 espPort = 8010,
+                                       STRING espURL = '',
                                        STRING username = '',
                                        STRING userPW = '',
                                        UNSIGNED2 timeoutInSeconds = 60) := FUNCTION
-        espURL := CreateESPURL(username, userPW, espScheme, espIPAddress, espPort);
+        myESPURL := CreateESPURL(espURL);
+        auth := CreateAuthHeaderValue(username, userPW);
 
         NamedQueryResultsLayout := RECORD
             STRING  rWUID           {XPATH('Wuid')};        // WUID of found workunit
@@ -402,7 +378,7 @@ EXPORT WorkunitExec := MODULE
 
         namedQueryResults := SOAPCALL
             (
-                espURL,
+                myESPURL,
                 'WUResult',
                 {
                     STRING pWUID {XPATH('Wuid')} := workunitID;
@@ -410,6 +386,7 @@ EXPORT WorkunitExec := MODULE
                 },
                 DATASET(NamedQueryResultsLayout),
                 XPATH('WUResultResponse'),
+                HTTPHEADER('Authorization', auth),
                 TIMEOUT(timeoutInSeconds), ONFAIL(SKIP)
             );
 
@@ -420,13 +397,14 @@ EXPORT WorkunitExec := MODULE
 
         fullQueryResults := SOAPCALL
             (
-                espURL,
+                myESPURL,
                 'WUFullResult',
                 {
                     STRING pWUID {XPATH('Wuid')} := workunitID;
                 },
                 DATASET(FullQueryResultsLayout),
                 XPATH('WUFullResultResponse'),
+                HTTPHEADER('Authorization', auth),
                 TIMEOUT(timeoutInSeconds), ONFAIL(SKIP)
             );
 
