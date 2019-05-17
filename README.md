@@ -22,6 +22,7 @@ well-commented.
 * [ConcatFieldValues.ecl](ConcatFieldValues.ecl)
 * [DatasetSkew.ecl](DatasetSkew.ecl)
 * [Factorial.ecl](Factorial.ecl)
+* [KeyValueStore.ecl](KeyValueStore.ecl)
 * [NotifyHelper.ecl](NotifyHelper.ecl)
 * [PlatformVersionCheck.ecl](PlatformVersionCheck.ecl)
 * [RandomFilename.ecl](RandomFilename.ecl)
