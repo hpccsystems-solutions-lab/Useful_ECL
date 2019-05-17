@@ -561,7 +561,7 @@ END;
 
 // Sample code
 
-IMPORT KeyValueStore;
+IMPORT Useful_ECL.KeyValueStore;
 
 #WORKUNIT('name', 'KeyValueStore Testing');
 
@@ -569,7 +569,7 @@ STORE_NAME := 'test_store';
 STORE_NAMESPACE := 'ns';
 KEY_1 := 'some_key';
 
-kvStore := Useful_ECL.KeyValueStore();
+kvStore := KeyValueStore();
 namedKVStore := kvStore.WithNamespace(STORE_NAMESPACE, STORE_NAME);
 
 createStoreRes := kvStore.CreateStore(STORE_NAME);
