@@ -1,6 +1,7 @@
 /**
- * Code that looks for files with "bad" data skews.  Such files may cause poor
- * performance if the skew is not addressed by ECL code.
+ * Code that examines a workunit looks for input files with "bad" data skews.
+ * Such files may cause poor performance if the skew is not addressed by
+ * ECL code.
  *
  * This code can either be run as a batch job under any of the HPCC engines
  * or it can be compiled and published as a Roxie or hThor query.
@@ -31,25 +32,25 @@ IMPORT Std;
 // files and analyze them for skew
 STRING WORKUNIT_ID := '' : STORED('Workunit_ID', FORMAT(SEQUENCE(100)));
 
-// ESP (ECL Watch) information for the cluster you will be inspecting; this is
-// needed even if you are analyzing data on the cluster that will be running
-// this job, as there is no way to determine an ESP URL from within ECL
-// (as of version 6.4.0 of the HPCC platform)
-STRING ESP_URL := 'http://127.0.0.1:8010' : STORED('ESP_URL', FORMAT(SEQUENCE(200)));
+// ESP (ECL Watch) information for the cluster you will be inspecting; defaults
+// to the same ESP process this job is running on
+STRING ESP_URL := Std.File.GetEspURL() : STORED('ESP_URL', FORMAT(SEQUENCE(200)));
+
+// Any authentication needed to access the ESP process
 STRING ESP_USER := '' : STORED('Username', FORMAT(SEQUENCE(300)));
 STRING ESP_USER_PW := '' : STORED('User_Password', FORMAT(SEQUENCE(400), PASSWORD));
 
 //==============================================================================
 
-// Build up a full URL for the ESP service (same as ECL Watch)
-fullUserInfo := MAP
+IF(WORKUNIT_ID = '', FAIL('A workunit ID must be supplied'));
+
+// Authentication header for SOAPCALL
+auth := IF
     (
-        ESP_USER != '' AND ESP_USER_PW != ''    =>  REGEXREPLACE('@', ESP_USER, '%40') + ':' + REGEXREPLACE('@', ESP_USER_PW, '%40') + '@',
-        ESP_USER != ''                          =>  ESP_USER + '@',
+        TRIM(ESP_USER, ALL) != '',
+        'Basic ' + Std.Str.EncodeBase64((DATA)(TRIM(ESP_USER, ALL) + ':' + TRIM(ESP_USER_PW, ALL))),
         ''
     );
-
-serviceURL := REGEXREPLACE('^(https?://)', TRIM(ESP_URL, LEFT, RIGHT), '$1' + TRIM(fullUserInfo, LEFT, RIGHT), NOCASE);
 
 //------------------------------------------------------------------------------
 // Get list of input files used by workunit
@@ -61,7 +62,7 @@ END;
 
 initialFilenameList := SOAPCALL
     (
-        serviceURL + '/WsWorkunits?ver_=1.62', // Verified with platform 6.2.20-1
+        ESP_URL + '/WsWorkunits?ver_=1.62', // Verified with platform 6.2.20-1
         'WUInfo',
         {
             STRING      wuid                        {XPATH('Wuid')} := WORKUNIT_ID,
@@ -76,7 +77,8 @@ initialFilenameList := SOAPCALL
             BOOLEAN     includeWorkflows            {XPATH('IncludeWorkflows')} := FALSE
         },
         DATASET(FileNameInfo),
-        XPATH('WUInfoResponse/Workunit/SourceFiles/ECLSourceFile')
+        XPATH('WUInfoResponse/Workunit/SourceFiles/ECLSourceFile'),
+        HTTPHEADER('Authorization', auth)
     );
 
 // initialFilenameList may contain superfiles; expand them if possible
@@ -123,13 +125,14 @@ END;
 
 rawTopologyInfo := SOAPCALL
     (
-        serviceURL + '/WsTopology?ver_=1.25', // Verified with platform 6.2.20-1
+        ESP_URL + '/WsTopology?ver_=1.25', // Verified with platform 6.2.20-1
         'TpTargetClusterQuery',
         {
             STRING  pType {XPATH('Type')} := ''
         },
         DATASET(TopologyRec),
         XPATH('TpTargetClusterQueryResponse/TpTargetClusters/TpTargetCluster'),
+        HTTPHEADER('Authorization', auth),
         TRIM
     );
 
@@ -179,7 +182,7 @@ END;
 dfuInfoRawResults := SOAPCALL
     (
         filenameList,
-        serviceURL + '/WsDFU?ver_=1.34', // Verified with platform 6.2.20-1
+        ESP_URL + '/WsDFU?ver_=1.34', // Verified with platform 6.2.20-1
         'DFUInfo',
         DFUInfoParamRec,
         TRANSFORM
@@ -189,6 +192,7 @@ dfuInfoRawResults := SOAPCALL
             ),
         DATASET(RawResultRec),
         XPATH('DFUInfoResponse/FileDetail'),
+        HTTPHEADER('Authorization', auth),
         TRIM
     );
 
