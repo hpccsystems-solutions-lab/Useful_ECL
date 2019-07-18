@@ -25,21 +25,51 @@ EXPORT DatasetSkew(VIRTUAL DATASET inFile) := FUNCTION
             inFile,
             {
                 UNSIGNED4   recordCount := COUNT(GROUP),
-                UNSIGNED4   nodeNum := Std.System.Thorlib.Node()
+                UNSIGNED4   nodeNum := Std.System.Thorlib.Node() + 1
             },
+            Std.System.Thorlib.Node() + 1,
             LOCAL
         );
+
+    // Zero results for all nodes
+    zeroNodes := DATASET
+        (
+            Std.System.Thorlib.Nodes(),
+            TRANSFORM
+                (
+                    {
+                        UNSIGNED4   recordCount,
+                        UNSIGNED4   nodeNum,
+                    },
+                    SELF.recordCount := 0,
+                    SELF.nodeNum := COUNTER
+                )
+        );
+
+    // From zeroNodes, filter out records where we have record counts
+    missingNodes := JOIN
+        (
+            nodeCounts,
+            zeroNodes,
+            LEFT.nodeNum = RIGHT.nodeNum,
+            TRANSFORM(RIGHT),
+            RIGHT ONLY
+        );
+
+    // Merge original count and zeroNodes to get a complete picture
+    mergedNodes := nodeCounts + missingNodes;
 
     // Add the skew value calculation to the result
     skewStats := PROJECT
         (
-            nodeCounts,
+            mergedNodes,
             TRANSFORM
                 (
                     {
                         RECORDOF(LEFT),
                         INTEGER2    skewValue
                     },
+                    SELF.nodeNum := LEFT.nodeNum - 1, // make the node number right
                     SELF.skewvalue := (LEFT.recordCount - perfectDist) / (perfectDist) * 100,
                     SELF := LEFT
                 )
