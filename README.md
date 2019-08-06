@@ -11,6 +11,12 @@ macros, meant to be used within a larger ECL program.  The code in the BWR
 directory are executable scripts rather than libraries.  Most code is
 well-commented.
 
+## Notes
+
+The DataPull utility previously located in this repo has been migrated to its
+own ECL bundle.  Please see
+[https://github.com/dcamper/DataPull](https://github.com/dcamper/DataPull).
+
 ## Snippet Categories
 
 ### Programming
@@ -53,5 +59,4 @@ well-commented.
 * [BWR\_RecordAllDataTypes.ecl](BWR/BWR_RecordAllDataTypes.ecl)
 
 ### Utilities
-* [DataPull.ecl](DataPull.ecl)
 * [WorkunitExec.ecl](WorkunitExec.ecl)
