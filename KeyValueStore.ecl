@@ -74,7 +74,7 @@ EXPORT KeyValueStore(STRING username = '',
     SHARED ENCODED_CREDENTIALS := IF
         (
             TRIM(username, ALL) != '',
-            'Basic ' + Std.Str.EncodeBase64((DATA)(TRIM(username, ALL) + ':' + TRIM(userPW, ALL))),
+            'Basic ' + Std.Str.EncodeBase64((DATA)(TRIM(username, ALL) + ':' + TRIM(userPW, LEFT, RIGHT))),
             ''
         );
 

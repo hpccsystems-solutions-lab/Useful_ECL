@@ -48,7 +48,7 @@ IF(WORKUNIT_ID = '', FAIL('A workunit ID must be supplied'));
 auth := IF
     (
         TRIM(ESP_USER, ALL) != '',
-        'Basic ' + Std.Str.EncodeBase64((DATA)(TRIM(ESP_USER, ALL) + ':' + TRIM(ESP_USER_PW, ALL))),
+        'Basic ' + Std.Str.EncodeBase64((DATA)(TRIM(ESP_USER, ALL) + ':' + TRIM(ESP_USER_PW, LEFT, RIGHT))),
         ''
     );
 
