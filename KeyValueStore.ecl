@@ -64,7 +64,7 @@ IMPORT Std;
  *                          empty string to use the URL of the current esp
  *                          process; OPTIONAL, defaults to an empty string
  *
- * @return  An reference to the module, correctly initialized with the
+ * @return  A reference to the module, correctly initialized with the
  *          given access parameters.
  */
 EXPORT KeyValueStore(STRING username = '',
@@ -297,14 +297,14 @@ EXPORT KeyValueStore(STRING username = '',
      *                          one has been defined; OPTIONAL, defaults to
      *                          an empty string
      *
-     * @return  An reference to the module, correctly initialized with the
+     * @return  A reference to the module, correctly initialized with the
      *          given namespace.
      */
     EXPORT WithNamespace(STRING namespace,
                          STRING storeName = '') := MODULE
 
         /**
-         * Sets a value for a key within a namespace.  If the key already existed
+         * Sets a value for a key within a namespace.  If the key already exists
          * then its value is overridden.  The namespace will be created if it has
          * not already been defined.
          *
