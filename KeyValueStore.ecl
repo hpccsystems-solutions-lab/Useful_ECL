@@ -11,10 +11,12 @@
  * results for the functions in this module.
  *
  * Keys in the key/value store are partitioned into namespaces.  Different
- * namespaces may host same-named keys without conflict.  In addition, keys can
- * be marked as 'global' (the default) or user-specific.  Note that in order to
- * use user-specific keys you must be running an HPCC Systems cluster with user
- * authentication enabled.
+ * namespaces may host same-named keys without conflict.  Namespaces are defined
+ * implicitly, when new key/value pairs are saved.
+ *
+ * In addition, keys can be marked as 'global' (the default) or user-specific.
+ * Note that in order to use user-specific keys you must be running an
+ * HPCC Systems cluster with user authentication enabled.
  *
  * The functions in this module would normally have a number of duplicate
  * parameters (namespace names, connection information to the esp service).
