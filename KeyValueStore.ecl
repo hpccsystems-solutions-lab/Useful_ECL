@@ -125,7 +125,7 @@ EXPORT KeyValueStore(STRING username = '',
     EXPORT CreateStoreResponseRec := RECORD
         BOOLEAN                         succeeded       {XPATH('Success')};     // Will be TRUE if a new store was created, FALSE if the store already existed
         BOOLEAN                         already_present := FALSE;               // Will be TRUE if store already existed
-        STRING                          storeName       {XPATH('Name')};
+        STRING                          store_name      {XPATH('Name')};
         STRING                          description     {XPATH('Description')};
         BOOLEAN                         has_exceptions := FALSE;
         DATASET(ExceptionListLayout)    exceptions      {XPATH('Exceptions')};
