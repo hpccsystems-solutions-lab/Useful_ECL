@@ -168,7 +168,7 @@ EXPORT KeyValueStore(STRING username = '',
 
     EXPORT GetAllKeyValuesResponseRec := RECORD
         STRING                          namespace       {XPATH('Namespace')};
-        DATASET(KeyValueRec)            key_kalues      {XPATH('Pairs/Pair')};
+        DATASET(KeyValueRec)            key_values      {XPATH('Pairs/Pair')};
         BOOLEAN                         has_exceptions := FALSE;
         DATASET(ExceptionListLayout)    exceptions      {XPATH('Exceptions')};
     END;
