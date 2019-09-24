@@ -248,8 +248,7 @@ EXPORT KeyValueStore(STRING username = '',
     END;
 
     /**
-     * Gets a list of namespaces defined in the current store.  This function
-     * ignores the namespace argument supplied to the module.
+     * Gets a list of namespaces defined in the current store.
      *
      * @param   storeName           A STRING naming the store containing the
      *                              namespaces you are interested in; set this
