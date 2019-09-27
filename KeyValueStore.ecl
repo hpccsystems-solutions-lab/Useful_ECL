@@ -30,6 +30,7 @@
  * Exported functions:
  *
  *      CreateStore
+ *      ListStores (with HPCC Systems 7.6.0 or later)
  *      SetKeyValue
  *      GetKeyValue
  *      DeleteKeyValue
@@ -76,6 +77,12 @@ EXPORT KeyValueStore(STRING username = '',
                      STRING userPW = '',
                      STRING espURL = '') := MODULE
 
+    #IF(Std.System.Util.PlatformVersionCheck('7.6.0'))
+        SHARED  WS_STORE_SERVICE_VERSION := '1.02';
+    #ELSE
+        SHARED  WS_STORE_SERVICE_VERSION := '1.01';
+    #END
+
     SHARED MY_USERNAME := TRIM(username, ALL);
     SHARED MY_USER_PW := TRIM(userPW, LEFT, RIGHT);
     SHARED ENCODED_CREDENTIALS := IF
@@ -87,7 +94,7 @@ EXPORT KeyValueStore(STRING username = '',
 
     // The URL that will be used by all SOAPCALL invocations
     TRIMMED_URL := TRIM(espURL, ALL);
-    SHARED MY_ESP_URL := IF(TRIMMED_URL != '', TRIMMED_URL, Std.File.GetEspURL(MY_USERNAME, MY_USER_PW)) + '/WsStore/?ver_=1.02';
+    SHARED MY_ESP_URL := IF(TRIMMED_URL != '', TRIMMED_URL, Std.File.GetEspURL(MY_USERNAME, MY_USER_PW)) + '/WsStore/?ver_=' + WS_STORE_SERVICE_VERSION;
 
     /**
      * Helper for function for setting the has_exception field within a
@@ -126,6 +133,23 @@ EXPORT KeyValueStore(STRING username = '',
         STRING                          source          {XPATH('Source')};
         DATASET(ExceptionLayout)        exceptions      {XPATH('Exception')};
     END;
+
+    #IF(Std.System.Util.PlatformVersionCheck('7.6.0'))
+        EXPORT StoreInfoRec := RECORD
+            STRING                      store_name      {XPATH('Name')};
+            STRING                      description     {XPATH('Description')};
+            STRING                      owner           {XPATH('Owner')};
+            STRING                      create_time     {XPATH('CreateTime')};
+            UNSIGNED4                   max_value_size  {XPATH('MaxValSize')};
+            BOOLEAN                     is_default      {XPATH('IsDefault')};
+        END;
+
+        EXPORT ListStoresResponseRec := RECORD
+            DATASET(StoreInfoRec)       stores          {XPATH('Stores/Store')};
+            BOOLEAN                     has_exceptions := FALSE;
+            ExceptionListLayout         exceptions      {XPATH('Exceptions')};
+        END;
+    #END
 
     EXPORT CreateStoreResponseRec := RECORD
         BOOLEAN                         succeeded       {XPATH('Success')};     // Will be TRUE if a new store was created, FALSE if store already existed or an error occurred
@@ -205,6 +229,12 @@ EXPORT KeyValueStore(STRING username = '',
      * @param   description         A STRING describing the purpose of the
      *                              store; may be an empty string; OPTIONAL,
      *                              defaults to an empty string
+     * @param   maxValueSize        The maximum size of any value stored within
+     *                              this store, in bytes; use a value of zero to
+     *                              indicate an unlimited maximum size;  this
+     *                              parameter is used only with HPCC Systems
+     *                              version 7.6.0 or later; OPTIONAL,
+     *                              defaults to 1024
      * @param   isUserSpecific      If TRUE, this store will be visible only
      *                              to the user indicated by the (username, userPW)
      *                              arguments provided when the module was
@@ -221,6 +251,7 @@ EXPORT KeyValueStore(STRING username = '',
      */
     EXPORT CreateStore(STRING storeName,
                        STRING description = '',
+                       UNSIGNED4 maxValueSize = 1024,
                        BOOLEAN isUserSpecific = FALSE,
                        UNSIGNED2 timeoutInSeconds = 0) := FUNCTION
         soapResponse := SOAPCALL
@@ -228,9 +259,12 @@ EXPORT KeyValueStore(STRING username = '',
                 MY_ESP_URL,
                 'CreateStore',
                 {
-                    STRING  pStoreName      {XPATH('Name')} := storeName;
-                    STRING  pDescription    {XPATH('Description')} := description;
-                    BOOLEAN pUserSpecific   {XPATH('UserSpecific')} := isUserSpecific;
+                    STRING          pStoreName      {XPATH('Name')} := storeName;
+                    STRING          pDescription    {XPATH('Description')} := description;
+                    #IF(Std.System.Util.PlatformVersionCheck('7.6.0'))
+                        UNSIGNED4   pMaxValueSize   {XPATH('MaxValueSize')} := maxValueSize;
+                    #END
+                    BOOLEAN         pUserSpecific   {XPATH('UserSpecific')} := isUserSpecific;
                 },
                 DATASET(CreateStoreResponseRec),
                 XPATH('CreateStoreResponse'),
@@ -251,6 +285,53 @@ EXPORT KeyValueStore(STRING username = '',
 
         RETURN UpdateForExceptions(finalResponse)[1];
     END;
+
+    #IF(Std.System.Util.PlatformVersionCheck('7.6.0'))
+        /**
+         * Gets a list of available stores.
+         *
+         * @param   nameFilter          A STRING defining a filter to be applied
+         *                              to the store's name; the filter accepts
+         *                              the '*' wildcard character to indicate
+         *                              'match anything' and '?' to match any
+         *                              single character; string comparisons are
+         *                              case-insensitive; an empty string is
+         *                              equivalent to '*'; OPTIONAL, defaults
+         *                              to '*'
+         * @param   ownerFilter         A STRING defining a filter to be applied
+         *                              to the store's owner; the filter accepts
+         *                              the '*' wildcard character to indicate
+         *                              'match anything' and '?' to match any
+         *                              single character; string comparisons are
+         *                              case-insensitive; an empty string is
+         *                              equivalent to '*'; OPTIONAL, defaults
+         *                              to '*'
+         * @param   timeoutInSeconds    The number of seconds to wait for the
+         *                              underlying SOAPCALL to complete; set to zero
+         *                              to wait forever; OPTIONAL, defaults to zero
+         *
+         * @return  A ListStoresResponseRec RECORD.
+         */
+        EXPORT ListStores(STRING nameFilter = '*',
+                          STRING ownerFilter = '*',
+                          UNSIGNED2 timeoutInSeconds = 0) := FUNCTION
+            soapResponse := SOAPCALL
+                (
+                    MY_ESP_URL,
+                    'ListStores',
+                    {
+                        STRING  pNameFilter     {XPATH('NameFilter')} := nameFilter;
+                        STRING  pOwnerFilter    {XPATH('OwnerFilter')} := ownerFilter;
+                    },
+                    DATASET(ListStoresResponseRec),
+                    XPATH('ListStoresResponse'),
+                    HTTPHEADER('Authorization', ENCODED_CREDENTIALS),
+                    TIMEOUT(timeoutInSeconds)
+                );
+
+            RETURN UpdateForExceptions(soapResponse)[1];
+        END;
+    #END
 
     /**
      * Gets a list of namespaces defined in the current store.
@@ -551,7 +632,7 @@ END;
 
 // Sample code
 
-IMPORT Useful_ECL.KeyValueStore;
+IMPORT Useful_ECL;
 
 #WORKUNIT('name', 'KeyValueStore Testing');
 
@@ -559,7 +640,7 @@ STORE_NAME := 'test_store';
 STORE_NAMESPACE := 'ns';
 KEY_1 := 'some_key';
 
-kvStore := KeyValueStore();
+kvStore := Useful_ECL.KeyValueStore();
 namedKVStore := kvStore.WithNamespace(STORE_NAMESPACE, STORE_NAME);
 
 createStoreRes := kvStore.CreateStore(STORE_NAME);
@@ -571,9 +652,16 @@ getAllKeysRes := namedKVStore.GetAllKeys();
 deleteKeyValueRes := namedKVStore.DeleteKeyValue(KEY_1);
 deleteNamespaceRes := namedKVStore.DeleteNamespace();
 
+#IF(Std.System.Util.PlatformVersionCheck('7.6.0'))
+    listStoresRes := kvStore.ListStores();
+#END
+
 SEQUENTIAL
     (
         OUTPUT(createStoreRes, NAMED('createStoreRes'));
+        #IF(Std.System.Util.PlatformVersionCheck('7.6.0'))
+            OUTPUT(listStoresRes, NAMED('listStoresRes'));
+        #END
         OUTPUT(listNamespacesRes, NAMED('listNamespacesRes'));
         OUTPUT(setKeyValueRes, NAMED('setKeyValueRes'));
         OUTPUT(listNamespacesRes, NAMED('listNamespacesRes_2'));
