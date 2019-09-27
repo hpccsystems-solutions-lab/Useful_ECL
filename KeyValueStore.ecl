@@ -53,18 +53,21 @@ IMPORT Std;
  * information, provided as arguments.
  *
  * @param   username        The username of the user requesting access to the
- *                          key value store; set to an empty string if
- *                          authentication is not required; OPTIONAL, defaults
- *                          to an empty string
+ *                          key value store; this is typically the same
+ *                          username used to login to ECL Watch; set to an
+ *                          empty string if authentication is not required;
+ *                          OPTIONAL, defaults to an empty string
  * @param   userPW          The password of the user requesting access to the
- *                          key value store; set to an empty string if
- *                          authentication is not required; OPTIONAL, defaults
- *                          to an empty string
+ *                          key value store; this is typically the same
+ *                          password used to login to ECL Watch; set to an
+ *                          empty string if authentication is not required;
+ *                          OPTIONAL, defaults to an empty string
  * @param   espURL          The full URL for accessing the esp process running
  *                          on the HPCC Systems cluster (this is typically the
  *                          same URL as used to access ECL Watch); set to an
  *                          empty string to use the URL of the current esp
- *                          process; OPTIONAL, defaults to an empty string
+ *                          process as found via Std.File.GetEspURL();
+ *                          OPTIONAL, defaults to an empty string
  *
  * @return  A reference to the module, correctly initialized with the
  *          given access parameters.
@@ -73,16 +76,18 @@ EXPORT KeyValueStore(STRING username = '',
                      STRING userPW = '',
                      STRING espURL = '') := MODULE
 
+    SHARED MY_USERNAME := TRIM(username, ALL);
+    SHARED MY_USER_PW := TRIM(userPW, LEFT, RIGHT);
     SHARED ENCODED_CREDENTIALS := IF
         (
-            TRIM(username, ALL) != '',
-            'Basic ' + Std.Str.EncodeBase64((DATA)(TRIM(username, ALL) + ':' + TRIM(userPW, LEFT, RIGHT))),
+            MY_USERNAME != '',
+            'Basic ' + Std.Str.EncodeBase64((DATA)(MY_USERNAME + ':' + MY_USER_PW)),
             ''
         );
 
     // The URL that will be used by all SOAPCALL invocations
     TRIMMED_URL := TRIM(espURL, ALL);
-    SHARED MY_ESP_URL := IF(TRIMMED_URL != '', TRIMMED_URL, Std.File.GetEspURL()) + '/WsStore/?ver_=1.01';
+    SHARED MY_ESP_URL := IF(TRIMMED_URL != '', TRIMMED_URL, Std.File.GetEspURL(MY_USERNAME, MY_USER_PW)) + '/WsStore/?ver_=1.02';
 
     /**
      * Helper for function for setting the has_exception field within a
@@ -123,31 +128,31 @@ EXPORT KeyValueStore(STRING username = '',
     END;
 
     EXPORT CreateStoreResponseRec := RECORD
-        BOOLEAN                         succeeded       {XPATH('Success')};     // Will be TRUE if a new store was created, FALSE if the store already existed
+        BOOLEAN                         succeeded       {XPATH('Success')};     // Will be TRUE if a new store was created, FALSE if store already existed or an error occurred
         BOOLEAN                         already_present := FALSE;               // Will be TRUE if store already existed
         STRING                          store_name      {XPATH('Name')};
         STRING                          description     {XPATH('Description')};
         BOOLEAN                         has_exceptions := FALSE;
-        DATASET(ExceptionListLayout)    exceptions      {XPATH('Exceptions')};
+        ExceptionListLayout             exceptions      {XPATH('Exceptions')};
     END;
 
     EXPORT SetKeyValueResponseRec := RECORD
         BOOLEAN                         succeeded       {XPATH('Success')};
         BOOLEAN                         has_exceptions := FALSE;
-        DATASET(ExceptionListLayout)    exceptions      {XPATH('Exceptions')};
+        ExceptionListLayout             exceptions      {XPATH('Exceptions')};
     END;
 
     EXPORT GetKeyValueResponseRec := RECORD
         BOOLEAN                         was_found := TRUE;                      // Will be FALSE if key was not found
         STRING                          value           {XPATH('Value')};
         BOOLEAN                         has_exceptions := FALSE;
-        DATASET(ExceptionListLayout)    exceptions      {XPATH('Exceptions')};
+        ExceptionListLayout             exceptions      {XPATH('Exceptions')};
     END;
 
     EXPORT DeleteKeyValueResponseRec := RECORD
         BOOLEAN                         succeeded       {XPATH('Success')};
         BOOLEAN                         has_exceptions := FALSE;
-        DATASET(ExceptionListLayout)    exceptions      {XPATH('Exceptions')};
+        ExceptionListLayout             exceptions      {XPATH('Exceptions')};
     END;
 
     SHARED KeySetRec := RECORD
@@ -158,7 +163,7 @@ EXPORT KeyValueStore(STRING username = '',
         STRING                          namespace       {XPATH('Namespace')};
         DATASET(KeySetRec)              keys            {XPATH('KeySet/Key')};
         BOOLEAN                         has_exceptions := FALSE;
-        DATASET(ExceptionListLayout)    exceptions      {XPATH('Exceptions')};
+        ExceptionListLayout             exceptions      {XPATH('Exceptions')};
     END;
 
     SHARED KeyValueRec := RECORD
@@ -170,7 +175,7 @@ EXPORT KeyValueStore(STRING username = '',
         STRING                          namespace       {XPATH('Namespace')};
         DATASET(KeyValueRec)            key_values      {XPATH('Pairs/Pair')};
         BOOLEAN                         has_exceptions := FALSE;
-        DATASET(ExceptionListLayout)    exceptions      {XPATH('Exceptions')};
+        ExceptionListLayout             exceptions      {XPATH('Exceptions')};
     END;
 
     SHARED NamespaceLayout := RECORD
@@ -180,13 +185,13 @@ EXPORT KeyValueStore(STRING username = '',
     EXPORT ListNamespacesResponseRec := RECORD
         DATASET(NamespaceLayout)        namespaces      {XPATH('Namespaces/Namespace')};
         BOOLEAN                         has_exceptions := FALSE;
-        DATASET(ExceptionListLayout)    exceptions      {XPATH('Exceptions')};
+        ExceptionListLayout             exceptions      {XPATH('Exceptions')};
     END;
 
     EXPORT DeleteNamespaceResponseRec := RECORD
         BOOLEAN                         succeeded       {XPATH('Success')};
         BOOLEAN                         has_exceptions := FALSE;
-        DATASET(ExceptionListLayout)    exceptions      {XPATH('Exceptions')};
+        ExceptionListLayout             exceptions      {XPATH('Exceptions')};
     END;
 
     //--------------------------------------------------------------------------
@@ -239,7 +244,7 @@ EXPORT KeyValueStore(STRING username = '',
                 TRANSFORM
                     (
                         RECORDOF(LEFT),
-                        SELF.already_present := NOT(LEFT.succeeded) AND NOT(EXISTS(LEFT.exceptions.exceptions)),
+                        SELF.already_present := (NOT LEFT.succeeded) AND (NOT EXISTS(LEFT.exceptions.exceptions)),
                         SELF := LEFT
                     )
             );
@@ -386,31 +391,15 @@ EXPORT KeyValueStore(STRING username = '',
                     TIMEOUT(timeoutInSeconds)
                 );
 
-            wasFound := (soapResponse[1].exceptions[1].exceptions[1].code != '-1');
-
-            finalResponse := IF
-                (
-                    wasFound,
-                    PROJECT
+            finalResponse := PROJECT
                         (
                             soapResponse,
                             TRANSFORM
                                 (
                                     RECORDOF(LEFT),
-                                    SELF.was_found := TRUE,
+                            SELF.was_found := NOT EXISTS(LEFT.exceptions.exceptions),
                                     SELF := LEFT
                                 )
-                        ),
-                    DATASET
-                        (
-                            1,
-                            TRANSFORM
-                                (
-                                    GetKeyValueResponseRec,
-                                    SELF.was_found := FALSE,
-                                    SELF := []
-                                )
-                        )
                 );
 
             RETURN UpdateForExceptions(finalResponse)[1];
