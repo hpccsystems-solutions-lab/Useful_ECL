@@ -58,10 +58,14 @@
  *
  * Example code may be found at the end of this file.
  *
- * The methods used in this module were inspired by a paper written by
- * Daniel Karch, Dennis Luxen, and Peter Sanders from the Karlsruhe
- * Institute of Technology, titled "Improved Fast Similarity Search in
- * Dictionaries".  This paper can be found at https://arxiv.org/abs/1008.1191v2.
+ * The methods used in this module (primarily the "deletion neighborhood"
+ * concept) were inspired by a paper written by Daniel Karch, Dennis Luxen,
+ * and Peter Sanders from the Karlsruhe Institute of Technology, titled
+ * "Improved Fast Similarity Search in Dictionaries"
+ * (https://arxiv.org/abs/1008.1191v2).  This paper, in turn, was based on the
+ * work described in "Fast Similarity Search in Large Dictionaries" by
+ * Thomas Bocek, Ela Hunt, and Burkhard Stiller
+ * (https://fastss.csg.uzh.ch/ifi-2007.02.pdf).
  */
 
 IMPORT Std;
