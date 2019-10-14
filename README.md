@@ -28,6 +28,7 @@ own ECL bundle.  Please see
 * [ConcatFieldValues.ecl](ConcatFieldValues.ecl)
 * [DatasetSkew.ecl](DatasetSkew.ecl)
 * [Factorial.ecl](Factorial.ecl)
+* [FuzzyStringSearch.ecl](FuzzyStringSearch.ecl)
 * [KeyValueStore.ecl](KeyValueStore.ecl)
 * [NotifyHelper.ecl](NotifyHelper.ecl)
 * [PlatformVersionCheck.ecl](PlatformVersionCheck.ecl)
