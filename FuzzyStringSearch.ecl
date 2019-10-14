@@ -91,7 +91,7 @@ EXPORT FuzzyStringSearch := MODULE
     // The record definition used by the dictionary index file and by
     // the internal matching function
     SHARED LookupRec := RECORD
-        UNSIGNED4   hash_value;     // 32-bit hash value of a word substring
+        UNSIGNED8   hash_value;     // 64-bit hash value of a word substring
         WordRec;                    // Original word
     END;
 
@@ -231,7 +231,7 @@ EXPORT FuzzyStringSearch := MODULE
                 TRANSFORM
                 (
                     LookupRec,
-                    SELF.hash_value := HASH32(RIGHT.word),
+                    SELF.hash_value := HASH64(RIGHT.word),
                     SELF.word := LEFT.word
                 )
             );
