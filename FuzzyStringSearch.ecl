@@ -21,13 +21,13 @@
  *
  * A maximum edit distance ("MaxED") is provided at both index creation
  * time and at search time.  Fuzzy matches with edit distances greater than
- * either MaxED will not be found.  The index grows dramatically with higher
- * MaxED values and longer words; a MaxED of 1 or 2 is typical when matching
- * single words.  You can use different MaxED values for index creation and
- * search; the MaxED value for search will be the limit for any results.
- * Searching with a MaxED higher than the MaxED used to create the index
- * will return only partial results (if any) for any edit distance value
- * beyond the MaxED used for index creation, so for accuracy the MaxED
+ * the search MaxED will not be returned.  The index grows dramatically
+ * with higher MaxED values and longer words; a MaxED of 1 or 2 is typical
+ * when matching single words.  You can use different MaxED values for index
+ * creation and search; the MaxED value for search will be the limit used
+ * for results.  Searching with a MaxED higher than the MaxED used to create
+ * the index will return only partial results (if any) for any edit distance
+ * value beyond the MaxED used for index creation, so for accuracy the MaxED
  * value you use for search should not exceed the value used to create
  * the index.
  *
@@ -100,7 +100,7 @@ EXPORT FuzzyStringSearch := MODULE
      *
      * Given a dataset of words and a MaxED value, this function generates
      * a dataset in the layout used for either index creation or searching.
-     * For each word, substrings are created and hashed into 32-bit numbers.
+     * For each word, substrings are created and hashed into 64-bit numbers.
      * The number of records generated for each word depends on the length of
      * the word and the max_edit_distance value provided.
      *
