@@ -24,6 +24,8 @@
  * compare the results from the individual runs.
  *
  * This code assumes that the platform is running on a Linux operating system.
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 IMPORT Std;
 

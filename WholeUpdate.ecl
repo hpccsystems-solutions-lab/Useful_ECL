@@ -79,6 +79,8 @@
  *
  * @return  A new dataset with the same structure as newFile but with the
  *          three additional tracking attributes (described above)
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 EXPORT WholeUpdate(newFile,
                    entityIDField,

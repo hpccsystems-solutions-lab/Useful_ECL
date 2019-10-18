@@ -32,6 +32,8 @@
  * @param   oldMap          IN, OPTIONAL    A dataset containing mappings
  *                                          from a previous execution; must have
  *                                          the record structure described above
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 EXPORT CreateNominalValues(inFile, attrListStr, outFile, outMap, oldMap = '') := MACRO
     LOADXML('<xml/>');

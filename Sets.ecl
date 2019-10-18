@@ -102,6 +102,8 @@
  * cluster maintenance (you have to install them separately).  The choice here
  * was to go ahead and duplicate the C++ code so that the impact on the ECL
  * programmer was minimal.
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 EXPORT Sets := MODULE
 

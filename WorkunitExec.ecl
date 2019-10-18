@@ -9,6 +9,8 @@
  * week) and if the compiled workunit you are trying to execute has been
  * archived, this code will not be able to find it.  To prevent Sasha from
  * archiving those compiled workunits, mark them as "Protected".
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 IMPORT Std;
 

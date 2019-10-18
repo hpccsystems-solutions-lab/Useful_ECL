@@ -19,6 +19,8 @@
  * The underlying ECL concepts are the INTERFACE and the MODULE.  An INTERFACE,
  * here, is used to define the interface that a MODULE will expose.  A MODULE
  * will be the worker (the custom code).
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 
 // Define the record structure of the data we'll be working with

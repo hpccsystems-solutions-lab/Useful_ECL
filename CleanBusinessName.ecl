@@ -15,6 +15,8 @@
  *                      or UTF8 data type; REQUIRED
  *
  * @return  The cleansed name in the same data type as the argument.
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 EXPORT CleanBusinessName(name) := FUNCTIONMACRO
     IMPORT Std;

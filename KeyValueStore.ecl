@@ -43,6 +43,8 @@
  *
  * Note2: A version of this module has been implemented in the ECL Standard
  *        Library as of version 7.6.0.  It is defined as Std.System.Store.
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 IMPORT Std;
 

@@ -7,6 +7,8 @@
  * @return  A string value indicating the general data type of the argument.
  *          If the general type cannot be determined then the exact type
  *          (as determined by #GETDATATYPE()) will be returned.
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 EXPORT ScalarArgType(value) := FUNCTIONMACRO
     #UNIQUENAME(outType);

@@ -6,6 +6,8 @@
  *                  zero; REQUIRED
  *
  * @return  A string
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 EXPORT STRING RandomFilename(UNSIGNED2 len) := EMBED(C++)
     #option volatile

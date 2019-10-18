@@ -23,6 +23,8 @@
  * that are used by the given workunit, and a subset of those files that may
  * have "bad" skew values (meaning, you should perhaps consider redistributing
  * their data or otherwise taking the skew into account).
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 IMPORT Std;
 

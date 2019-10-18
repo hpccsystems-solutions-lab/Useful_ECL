@@ -76,6 +76,8 @@
  *      BitSet._Tests.TestAll;
  *
  * All tests pass if the workunit completes successfully (there is no output).
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 
 EXPORT BitSet := MODULE, FORWARD

@@ -9,6 +9,8 @@
  *                          empty string, which will delete target; REQUIRED
  *
  * @return  The input dataset with the find-and-replace actions performed
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 EXPORT ReplaceCharInDataset(inFile, target, replacement) := FUNCTIONMACRO
     IMPORT Std;

@@ -7,6 +7,8 @@
  *              that will not fit into an UNSIGNED8
  * 
  * @return  The factorial of argument, or zero if it cannot be computed.
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 EXPORT UNSIGNED8 Factorial(UNSIGNED1 n) := EMBED(C++)
     unsigned __int64 result = 0;

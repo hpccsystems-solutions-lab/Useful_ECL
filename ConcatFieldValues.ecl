@@ -29,6 +29,8 @@
  * @return  A scalar value of type outFieldType containing all of the values
  *          from the inFile.inField, with the value of delim as a separator,
  *          in record order.
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 ConcatFieldValues(inFile, outFieldType, inField, delim = '\'\'', doTrim = FALSE) := FUNCTIONMACRO
     #UNIQUENAME(outField);

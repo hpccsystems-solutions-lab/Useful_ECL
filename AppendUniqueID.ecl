@@ -16,6 +16,8 @@
  *
  * @return                      A new dataset with the appended unique identifer
  *                              field.
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 
 EXPORT AppendUniqueID(inFile, startingID = 1, strictlySequential = FALSE, idAttr = 'uid') := FUNCTIONMACRO

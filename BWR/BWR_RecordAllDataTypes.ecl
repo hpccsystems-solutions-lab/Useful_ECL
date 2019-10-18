@@ -5,6 +5,8 @@
  *
  * This is most useful for a macro programmer, as it shows what kind of XML
  * structure is returned as well as some of the possible values.
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 S := {INTEGER n};
 

@@ -15,6 +15,8 @@
  *      GenerateWordTrigrams
  *
  * Sample calls shown at the end of the file.
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 IMPORT Std;
 

@@ -9,6 +9,8 @@
  * /usr/share/dict/words.  The assumption is that there will be one word per
  * line.  You can use a different file by changing the value of the
  * WORD_FILE_PATH attribute.
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 IMPORT Std;
 

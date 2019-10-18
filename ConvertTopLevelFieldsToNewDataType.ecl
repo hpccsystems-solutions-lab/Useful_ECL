@@ -9,6 +9,8 @@
  *                          expressed as a string; OPTIONAL, defaults to 'STRING'
  *
  * @return  The new recordset
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 EXPORT ConvertTopLevelFieldsToNewDataType(inFile, newDataType = '\'STRING\'') := FUNCTIONMACRO
     IMPORT Std;

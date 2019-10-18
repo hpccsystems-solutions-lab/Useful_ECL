@@ -6,6 +6,8 @@
  *  OnlyPrintableStr:   Removes non-printable characters from a string.
  *  OnlyPrintableUni:   Removes non-printable characters from a Unicode string.
  *  IsSubstring:        Test for presence of a substring within another string.
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 EXPORT Str := MODULE
 

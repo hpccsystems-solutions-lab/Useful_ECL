@@ -32,6 +32,8 @@
  *      IsNullValueStr(CONST UUIDStr_t uuid)
  *      AsString(CONST UUIDBin_t uuid)
  *      AsBinary(CONST UUIDStr_t uuid)
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 EXPORT UUID := MODULE
 

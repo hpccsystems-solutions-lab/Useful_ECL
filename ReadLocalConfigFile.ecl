@@ -27,6 +27,8 @@
  *          Both key and value are STRING data types.  If the cited file does
  *          not exist then an empty dictionary is returned.
  *          Example usage:  myParamValue := myConfig[key].value;
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 
 IMPORT Std;

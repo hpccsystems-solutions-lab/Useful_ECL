@@ -14,6 +14,8 @@
  *                  must adhere to the limitations of a NAMED output string,
  *                  chiefly that it begins with a letter and contains no
  *                  spaces; OPTIONAL, defaults to an empty string
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 EXPORT RowFieldsOut(oneRow, prefix = '\'\'') := MACRO
     LOADXML('<xml/>');

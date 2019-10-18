@@ -36,6 +36,8 @@
  * Documentation on the specific functions can be found inline.  Example
  * BWRs (one that would wait for a notification, and one that triggers it) can
  * be found at the end of the file in comment blocks.
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 
 IMPORT Std;

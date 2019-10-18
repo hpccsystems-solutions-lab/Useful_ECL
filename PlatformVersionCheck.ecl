@@ -21,6 +21,8 @@
  *
  * @return  If TRUE, the platform's current version is equal to or higher than
  *          the argument.
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 EXPORT PlatformVersionCheck(STRING v) := FUNCTION
     major := (INTEGER)REGEXFIND('^(\\d+)', v, 1);

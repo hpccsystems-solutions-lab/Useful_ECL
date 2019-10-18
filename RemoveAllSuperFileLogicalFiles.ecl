@@ -12,6 +12,8 @@ IMPORT Std;
  *                          OPTIONAL, defaults to FALSE
  *
  * @return  An action that performs the removal
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 EXPORT RemoveAllSuperFileLogicalFiles(STRING superfilePath, BOOLEAN delete = FALSE) := FUNCTION
     subfilesToDelete := PROJECT

@@ -7,6 +7,8 @@
  *                          system; OPTIONAL, defaults to '127.0.0.1'
  *
  * @return  The contents of the file as a string
+ *
+ * Origin:  https://github.com/dcamper/Useful_ECL
  */
 
 IMPORT Std;
