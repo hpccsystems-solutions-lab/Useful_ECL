@@ -38,6 +38,13 @@
  * characters."  So, a three-character word will use a MaxED of 1, a
  * five-character word use a MaxED of 2, and so on.
  *
+ * This module provides data normalization only for the TextSearch() function,
+ * where it is slightly harder to implement.  For dictionary creation and
+ * the other search functions, you should prepare your data by converting the
+ * strings to uppercase or lowercase, removing space runs, etc so that all
+ * values are normalized as much as possible.  Exactly what normalization
+ * steps you perform depend on your use-case.
+ *
  * This module does not provide any data normalization, and comparisons are
  * case-sensitive.  You should prepare both the dictionary and query
  * words by upper- or lower-casing all values, removing space runs, etc so
@@ -50,11 +57,17 @@
  *      // Record Definitions
  *      WordRec
  *      SearchResultRec
+ *      TextSearchResultRec
  *
- *      // Functions
- *      CreateIndex(DATASET(WordRec) words, STRING newIndexPath, UNSIGNED1 maxEditDistance);
- *      BulkSearch(DATASET(WordRec) words, STRING indexPath, UNSIGNED1 maxEditDistance);
- *      Search(STRING word, STRING indexPath, UNSIGNED1 maxEditDistance);
+ *      // Function Prototypes
+ *      NormalizeWordPrototype()
+ *
+ *      // Functions -- see code for parameter list
+ *      NormalizeWordUpperCase()
+ *      CreateIndex()
+ *      BulkSearch()
+ *      WordSearch()
+ *      TextSearch()
  *
  * Example code may be found at the end of this file.
  *
@@ -84,10 +97,22 @@ EXPORT FuzzyStringSearch := MODULE
     END;
 
     // The record definition of results from BulkSearch() or Search()
-    EXPORT SearchResultRec := RECORD
-        STRING      given_word;
+    SHARED RelatedWordRec := RECORD
         STRING      dictionary_word;
         UNSIGNED1   edit_distance;
+    END;
+
+    // The record definition of results from BulkSearch() or Search()
+    EXPORT SearchResultRec := RECORD
+        STRING      given_word;
+        RelatedWordRec;
+    END;
+
+    // The record definition of results from TextSearch()
+    EXPORT TextSearchResultRec := RECORD
+        UNSIGNED2   word_pos;
+        STRING      given_word;
+        DATASET(RelatedWordRec)     related_words;
     END;
 
     // The record definition used by the dictionary index file and by
@@ -95,6 +120,41 @@ EXPORT FuzzyStringSearch := MODULE
     SHARED LookupRec := RECORD
         UNSIGNED8   hash_value;     // 64-bit hash value of a word substring
         WordRec;                    // Original word
+    END;
+
+    /**
+     * Function prototype -- must be overridden with a concrete function
+     *
+     * Given a single word, return a 'normalized' version of the word to be
+     * used for index creation or searching.
+     *
+     * @param   oneWord     A word to normalize; REQUIRED
+     *
+     * @return  The given word, normalized in whatever manner is correct
+     *          for the current use-case.
+     *
+     * @see     TextSearch
+     * @see     NormalizeWordUpperCase
+     */
+    EXPORT STRING NormalizeWordPrototype(STRING oneWord);
+
+    /**
+     * Concrete instantiation of the NormalizeWordPrototype() prototype
+     *
+     * @param   oneWord     A word to normalize; REQUIRED
+     *
+     * @return  The given word converted to uppercase and with leading
+     *          and trailing non-alphanumeric characters removed.
+     *
+     * @see     NormalizeWordPrototype
+     * @see     TextSearch
+     */
+    EXPORT STRING NormalizeWordUpperCase(STRING oneWord) := FUNCTION
+        upperWord := Std.Str.ToUpperCase(oneWord);
+        noBeginningPunct := REGEXREPLACE('^[^[:alnum:]]+', upperWord, '');
+        noEndingPunct := REGEXREPLACE('[^[:alnum:]]+$', noBeginningPunct, '');
+
+        RETURN noEndingPunct;
     END;
 
     /**
@@ -118,8 +178,8 @@ EXPORT FuzzyStringSearch := MODULE
      *
      * @return  A new DATASET(LookupRec)
      */
-    SHARED DATASET(LookupRec) CreateWordHashes(DATASET(WordRec) words, UNSIGNED1 max_edit_distance) := FUNCTION
-        STREAMED DATASET(WordRec) _CreateDeleteSet(CONST STRING _one_word, UNSIGNED1 _max_distance, UNSIGNED2 _max_word_len = MAX_WORD_LENGTH) := EMBED(C++)
+    SHARED DATASET(LookupRec) CreateDeletionNeighborhoodHashes(DATASET(WordRec) words, UNSIGNED1 max_edit_distance) := FUNCTION
+        STREAMED DATASET(WordRec) _CreateDeletionNeighborhood(CONST STRING _one_word, UNSIGNED1 _max_distance, UNSIGNED2 _max_word_len = MAX_WORD_LENGTH) := EMBED(C++)
             #option pure;
             #include <string>
             #include <set>
@@ -225,11 +285,12 @@ EXPORT FuzzyStringSearch := MODULE
 
         // Collect substrings for each word and hash them,
         // flattening the result; note that results from
-        // _CreateDeleteSet() are deduplicated and non-empty
+        // _CreateDeletionNeighborhood() are deduplicated
+        // and non-empty
         result := NORMALIZE
             (
                 words,
-                _CreateDeleteSet(LEFT.word, max_edit_distance),
+                _CreateDeletionNeighborhood(LEFT.word, max_edit_distance),
                 TRANSFORM
                 (
                     LookupRec,
@@ -288,11 +349,13 @@ EXPORT FuzzyStringSearch := MODULE
      * @return  An action that creates a new index file.
      *
      * @see     BulkSearch
-     * @see     Search
+     * @see     WordSearch
      */
-    EXPORT CreateIndex(DATASET(WordRec) words, STRING newIndexPath, UNSIGNED1 maxEditDistance = 1) := FUNCTION
+    EXPORT CreateIndex(DATASET(WordRec) words,
+                       STRING newIndexPath,
+                       UNSIGNED1 maxEditDistance = 1) := FUNCTION
         uniqueWords := TABLE(words(word != ''), {word}, word, MERGE);
-        lookupData := CreateWordHashes(uniqueWords, maxEditDistance);
+        lookupData := CreateDeletionNeighborhoodHashes(uniqueWords, maxEditDistance);
         indexDef := HashLookupIndexDef(newIndexPath);
 
         RETURN BUILD(indexDef, lookupData, OVERWRITE);
@@ -327,11 +390,13 @@ EXPORT FuzzyStringSearch := MODULE
      *
      * @see     SearchResultRec
      * @see     CreateIndex
-     * @see     Search
+     * @see     WordSearch
      */
-    EXPORT DATASET(SearchResultRec) BulkSearch(DATASET(WordRec) words, STRING indexPath, UNSIGNED1 maxEditDistance = 1) := FUNCTION
+    EXPORT DATASET(SearchResultRec) BulkSearch(DATASET(WordRec) words,
+                                               STRING indexPath,
+                                               UNSIGNED1 maxEditDistance = 1) := FUNCTION
         uniqueWords := TABLE(words(word != ''), {word}, word, MERGE);
-        wordHashes := CreateWordHashes(uniqueWords, maxEditDistance);
+        wordHashes := CreateDeletionNeighborhoodHashes(uniqueWords, maxEditDistance);
         indexDef := HashLookupIndexDef(indexPath);
 
         initialResult := JOIN
@@ -397,8 +462,100 @@ EXPORT FuzzyStringSearch := MODULE
      * @see     CreateIndex
      * @see     BulkSearch
      */
-    EXPORT DATASET(SearchResultRec) Search(STRING word, STRING indexPath, UNSIGNED1 maxEditDistance = 1) := FUNCTION
+    EXPORT DATASET(SearchResultRec) WordSearch(STRING word,
+                                               STRING indexPath,
+                                               UNSIGNED1 maxEditDistance = 1) := FUNCTION
         RETURN BulkSearch(DATASET([word], WordRec), indexPath, maxEditDistance);
+    END;
+
+    /**
+     * Attempt to match words within with a string against a dictionary
+     * represented by an index file previously created with CreateIndex().
+     * The string can contain one or more words, delimited by spaces.
+     * Only words that are at least three characters in length will have
+     * edit distance searching performed (shorter words will have only exact
+     * matching).
+     *
+     * Each word that is extracted from the string must be normalized using
+     * the function you provide as an argument to this function call.  A
+     * default normalization function is provided that uppercases the word
+     * and removes leading and trailing non-alphanumeric characters.
+     *
+     * If the desire is to search multi-word strings as a whole, without
+     * breaking them up into individual words, then BulkSearch() or
+     * WordSearch() should be used instead.
+     *
+     * @param   text                A string containing one or more words;
+     *                              each word is processed through the
+     *                              function defined by the normWordFunction
+     *                              argument; REQUIRED
+     * @param   indexPath           Full logical path of the index file
+     *                              containing the dictionary words, previously
+     *                              created with a call to CreateIndex();
+     *                              REQUIRED
+     * @param   normWordFunction    The function called for each word extracted
+     *                              from the text argument to normalize its
+     *                              value for searching; OPTIONAL, defaults
+     *                              to a function that uppercases the string
+     *                              and removes leading and trailing non-
+     *                              alphanumeric characters
+     * @param   maxEditDistance     The maximum edit distance to use when
+     *                              comparing each word to dictionary words;
+     *                              a value of zero will enable an 'adaptive
+     *                              edit distance' which means that the value
+     *                              for any single word will depend on the
+     *                              length of that word (roughly, 1 for every
+     *                              four characters); OPTIONAL, defaults to 1
+     *
+     * @return  A new DATASET(TextSearchResultRec) dataset containing all of
+     *          original words, their relative positions within the string,
+     *          and a child dataset for each showing any possible matches
+     *          (possibly none) from the dictionary
+     *
+     * @see     CreateIndex
+     * @see     BulkSearch
+     * @see     WordSearch
+     */
+    EXPORT TextSearch(STRING text,
+                      STRING indexPath,
+                      NormalizeWordPrototype normWordFunction = NormalizeWordUpperCase,
+                      UNSIGNED1 maxEditDistance = 1) := FUNCTION
+        wordSet := Std.Str.SplitWords(text, ' ');
+
+        PositionWordRec := RECORD(WordRec)
+            UNSIGNED2   word_pos;
+        END;
+
+        wordDS := PROJECT
+            (
+                DATASET(wordSet, {STRING w}),
+                TRANSFORM
+                    (
+                        PositionWordRec,
+                        SELF.word_pos := COUNTER,
+                        SELF.word := normWordFunction(LEFT.w)
+                    )
+            );
+
+        bulkResults := BulkSearch(wordDS, indexPath, maxEditDistance);
+
+        res := DENORMALIZE
+            (
+                wordDS,
+                bulkResults,
+                LEFT.word = RIGHT.given_word,
+                GROUP,
+                TRANSFORM
+                    (
+                        TextSearchResultRec,
+                        SELF.word_pos := LEFT.word_pos,
+                        SELF.given_word := LEFT.word,
+                        SELF.related_words := PROJECT(ROWS(RIGHT), RelatedWordRec),
+                        SELF := LEFT
+                    ),
+                LEFT OUTER
+            );
+        RETURN res;
     END;
 
 END;
@@ -463,7 +620,7 @@ OUTPUT(results);
 
 IMPORT FuzzyStringSearch;
 
-results := FuzzyStringSearch.Search
+results := FuzzyStringSearch.WordSearch
     (
         'QUIK',
         '~fuzzy_search::demo_idx',
@@ -475,5 +632,32 @@ OUTPUT(results);
 // given_word      dictionary_word     edit_distance
 //--------------------------------------------------
 // QUIK            QUICK               1
+
+*/
+
+/*****************************************************************************
+
+// Example:  Text search against the dictionary index file
+
+IMPORT FuzzyStringSearch;
+
+results := FuzzyStringSearch.TextSearch
+    (
+        'Fax me the big box picture.',
+        '~fuzzy_search::demo_idx',
+        maxEditDistance := 1
+    );
+
+OUTPUT(SORT(results, word_pos));
+
+//                           related_words
+// word_pos  given_word      dictionary_word     edit_distance
+//------------------------------------------------------------
+// 1         FAX             FOX                 1
+// 2         ME
+// 3         THE             THE                 0
+// 4         BIG
+// 5         BOX             FOX                 1
+// 6         PICTURE
 
 */
