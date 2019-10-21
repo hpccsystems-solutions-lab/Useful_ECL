@@ -63,7 +63,7 @@
  *      NormalizeWordPrototype()
  *
  *      // Functions -- see code for parameter list
- *      NormalizeWordUpperCase()
+ *      DoNothingNormalization()
  *      CreateIndex()
  *      BulkSearch()
  *      WordSearch()
@@ -134,27 +134,23 @@ EXPORT FuzzyStringSearch := MODULE
      *          for the current use-case.
      *
      * @see     TextSearch
-     * @see     NormalizeWordUpperCase
+     * @see     DoNothingNormalization
      */
     EXPORT STRING NormalizeWordPrototype(STRING oneWord);
 
     /**
      * Concrete instantiation of the NormalizeWordPrototype() prototype
+     * that does nothing.
      *
      * @param   oneWord     A word to normalize; REQUIRED
      *
-     * @return  The given word converted to uppercase and with leading
-     *          and trailing non-alphanumeric characters removed.
+     * @return  The given word, unchanged.
      *
      * @see     NormalizeWordPrototype
      * @see     TextSearch
      */
-    EXPORT STRING NormalizeWordUpperCase(STRING oneWord) := FUNCTION
-        upperWord := Std.Str.ToUpperCase(oneWord);
-        noBeginningPunct := REGEXREPLACE('^[^[:alnum:]]+', upperWord, '');
-        noEndingPunct := REGEXREPLACE('[^[:alnum:]]+$', noBeginningPunct, '');
-
-        RETURN noEndingPunct;
+    EXPORT STRING DoNothingNormalization(STRING oneWord) := FUNCTION
+        RETURN oneWord;
     END;
 
     /**
@@ -496,9 +492,7 @@ EXPORT FuzzyStringSearch := MODULE
      * @param   normWordFunction    The function called for each word extracted
      *                              from the text argument to normalize its
      *                              value for searching; OPTIONAL, defaults
-     *                              to a function that uppercases the string
-     *                              and removes leading and trailing non-
-     *                              alphanumeric characters
+     *                              to a function that does nothing
      * @param   maxEditDistance     The maximum edit distance to use when
      *                              comparing each word to dictionary words;
      *                              a value of zero will enable an 'adaptive
@@ -518,7 +512,7 @@ EXPORT FuzzyStringSearch := MODULE
      */
     EXPORT TextSearch(STRING text,
                       STRING indexPath,
-                      NormalizeWordPrototype normWordFunction = NormalizeWordUpperCase,
+                      NormalizeWordPrototype normWordFunction = DoNothingNormalization,
                       UNSIGNED1 maxEditDistance = 1) := FUNCTION
         wordSet := Std.Str.SplitWords(text, ' ');
 
@@ -641,10 +635,19 @@ OUTPUT(results);
 
 IMPORT FuzzyStringSearch;
 
+STRING NormalizeWordUpperCase(STRING oneWord) := FUNCTION
+    upperWord := Std.Str.ToUpperCase(oneWord);
+    noBeginningPunct := REGEXREPLACE('^[^[:alnum:]]+', upperWord, '');
+    noEndingPunct := REGEXREPLACE('[^[:alnum:]]+$', noBeginningPunct, '');
+
+    RETURN noEndingPunct;
+END;
+
 results := FuzzyStringSearch.TextSearch
     (
         'Fax me the big box picture.',
         '~fuzzy_search::demo_idx',
+        normWordFunction := NormalizeWordUpperCase,
         maxEditDistance := 1
     );
 
