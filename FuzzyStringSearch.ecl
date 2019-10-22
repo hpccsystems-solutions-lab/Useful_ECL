@@ -32,7 +32,7 @@
  * the index.
  *
  * This module supports an "adaptive edit distance" feature.  Rather than
- * setting a fixed maximum edit distance, you can supply a zero value for the
+ * setting a fixed maximum edit distance, you can supply a -1 value for the
  * MaxED parameter and the function will choose an appropriate value on a
  * per-word basis.  The value chosen will be basically, "1 for every four
  * characters."  So, a three-character word will use a MaxED of 1, a
@@ -115,11 +115,16 @@ EXPORT FuzzyStringSearch := MODULE
         DATASET(RelatedWordRec)     related_words;
     END;
 
+    // Record definition used to hold the deletion neighborhood hashes
+    SHARED HashRec := RECORD
+        UNSIGNED8           hash_value;
+    END;
+
     // The record definition used by the dictionary index file and by
     // the internal matching function
     SHARED LookupRec := RECORD
-        UNSIGNED8   hash_value;     // 64-bit hash value of a word substring
-        WordRec;                    // Original word
+        HashRec;
+        WordRec;
     END;
 
     /**
@@ -158,9 +163,10 @@ EXPORT FuzzyStringSearch := MODULE
      *
      * Given a dataset of words and a MaxED value, this function generates
      * a dataset in the layout used for either index creation or searching.
-     * For each word, substrings are created and hashed into 64-bit numbers.
-     * The number of records generated for each word depends on the length of
-     * the word and the max_edit_distance value provided.
+     * For each word, substrings are created and hashed into 64-bit numbers
+     * (the deletion neighborhood).  The number of records generated for each
+     * word depends on the length of the word and the max_edit_distance value
+     * provided.
      *
      * @param   words               A dataset in WordRec layout containing
      *                              the words to process; this dataset
@@ -170,20 +176,31 @@ EXPORT FuzzyStringSearch := MODULE
      *                              typically a value of 1 or 2 for single-
      *                              word values, but may be slightly larger
      *                              when dealing with longer "words";
+     *                              a value of -1 will enable an 'adaptive
+     *                              edit distance' which means that the value
+     *                              for any single word will depend on the
+     *                              length of that word (roughly, 1 for every
+     *                              four characters)
      *                              REQUIRED
      *
      * @return  A new DATASET(LookupRec)
      */
-    SHARED DATASET(LookupRec) CreateDeletionNeighborhoodHashes(DATASET(WordRec) words, UNSIGNED1 max_edit_distance) := FUNCTION
-        STREAMED DATASET(WordRec) _CreateDeletionNeighborhood(CONST STRING _one_word, UNSIGNED1 _max_distance, UNSIGNED2 _max_word_len = MAX_WORD_LENGTH) := EMBED(C++)
+    SHARED DATASET(LookupRec) CreateDeletionNeighborhoodHashes(DATASET(WordRec) words, INTEGER1 max_edit_distance) := FUNCTION
+        STREAMED DATASET(HashRec) _CreateDeletionNeighborhood(CONST STRING _one_word, INTEGER1 _max_distance, UNSIGNED2 _max_word_len = MAX_WORD_LENGTH) := EMBED(C++)
             #option pure;
             #include <string>
             #include <set>
-            typedef std::set<std::string> WordSet;
+            typedef std::set<hash64_t> HashValueSet;
+
+            // Compute the 64-bit hash for a std::string value
+            hash64_t HashString(const std::string& aString)
+            {
+                return rtlHash64Data(aString.size(), aString.data(), 14695981039346656037LLU);
+            }
 
             // Recursive function that deletes single characters; depth here is associated with the
             // the MaxED value
-            void PopulateDeletedCharList(const std::string& aWord, unsigned int depth, WordSet& aSet)
+            void PopulateHashSet(const std::string& aWord, unsigned int depth, HashValueSet& aSet)
             {
                 // Abort if we've gone deep enough or if the word is too short
                 // (don't allow single-character substrings in the result)
@@ -194,8 +211,8 @@ EXPORT FuzzyStringSearch := MODULE
                         std::string     myWord(aWord);
 
                         myWord.erase(x, 1);
-                        aSet.insert(myWord);
-                        PopulateDeletedCharList(myWord, depth - 1, aSet);
+                        aSet.insert(HashString(myWord));
+                        PopulateHashSet(myWord, depth - 1, aSet);
                     }
                 }
             }
@@ -204,17 +221,17 @@ EXPORT FuzzyStringSearch := MODULE
             {
                 public:
 
-                    StreamDataset(IEngineRowAllocator* _resultAllocator, unsigned int wordLen, const char* word, unsigned int max_edit_distance)
+                    StreamDataset(IEngineRowAllocator* _resultAllocator, unsigned int wordLen, const char* word, int maxEditDistance)
                         : resultAllocator(_resultAllocator), myWord(word, wordLen), isInited(false)
                     {
-                        myEditDistance = (max_edit_distance > 0 ? max_edit_distance : (wordLen - 1) / 4 + 1);
+                        myEditDistance = (maxEditDistance >= 0 ? maxEditDistance : (wordLen - 1) / 4 + 1);
                         isStopped = (wordLen == 0);
                     }
 
                     RTLIMPLEMENT_IINTERFACE
 
                     // Each time a row is requested, provide a copy of the next
-                    // substring created during object construction
+                    // hash value
                     virtual const void* nextRow()
                     {
                         if (isStopped)
@@ -224,28 +241,28 @@ EXPORT FuzzyStringSearch := MODULE
 
                         if (!isInited)
                         {
-                            // Insert given word as-is into our substring set
-                            deleteSet.insert(myWord);
+                            // Insert hash of given word into our substring set
+                            // to start things off
+                            hashSet.insert(HashString(myWord));
 
-                            // Build substrings and insert them into our substring set
-                            PopulateDeletedCharList(myWord, myEditDistance, deleteSet);
+                            // Build substrings and insert their hashes into
+                            // our hash set
+                            PopulateHashSet(myWord, myEditDistance, hashSet);
 
-                            deleteSetIter = deleteSet.begin();
+                            hashSetIter = hashSet.begin();
                             isInited = true;
                         }
 
-                        if (deleteSetIter != deleteSet.end())
+                        if (hashSetIter != hashSet.end())
                         {
-                            const std::string&      oneWord(*deleteSetIter);
+                            hash64_t                oneHash = *hashSetIter;
                             RtlDynamicRowBuilder    rowBuilder(resultAllocator);
-                            unsigned int            len = sizeof(size32_t) + oneWord.size();
+                            unsigned int            len = sizeof(oneHash);
                             byte*                   row = rowBuilder.ensureCapacity(len, NULL);
 
-                            *(size32_t*)(row) = oneWord.size();
-                            row += sizeof(size32_t);
-                            memcpy(row, oneWord.data(), oneWord.size());
+                            *(hash64_t*)(row) = oneHash;
 
-                            ++deleteSetIter;
+                            ++hashSetIter;
 
                             return rowBuilder.finalizeRowClear(len);
                         }
@@ -266,12 +283,12 @@ EXPORT FuzzyStringSearch := MODULE
 
                 private:
 
-                    std::string                 myWord;         // Word we are processing
-                    unsigned int                myEditDistance; // The edit distance we're calculating
-                    WordSet                     deleteSet;      // Contains unique substrings
-                    WordSet::const_iterator     deleteSetIter;  // Iterator used to track items for nextRow()
-                    bool                        isInited;
-                    bool                        isStopped;
+                    std::string                     myWord;         // Word we are processing
+                    unsigned int                    myEditDistance; // The max edit distance we're calculating
+                    HashValueSet                    hashSet;        // Contains unique hash values
+                    HashValueSet::const_iterator    hashSetIter;    // Iterator used to track hash items for nextRow()
+                    bool                            isInited;
+                    bool                            isStopped;
             };
 
             #body
@@ -279,10 +296,9 @@ EXPORT FuzzyStringSearch := MODULE
             return new StreamDataset(_resultAllocator, std::min(len_one_word, (size32_t)_max_word_len), _one_word, _max_distance);
         ENDEMBED;
 
-        // Collect substrings for each word and hash them,
+        // Collect hashes of the deletion neighborhood,
         // flattening the result; note that results from
         // _CreateDeletionNeighborhood() are deduplicated
-        // and non-empty
         result := NORMALIZE
             (
                 words,
@@ -290,7 +306,7 @@ EXPORT FuzzyStringSearch := MODULE
                 TRANSFORM
                 (
                     LookupRec,
-                    SELF.hash_value := HASH64(RIGHT.word),
+                    SELF.hash_value := RIGHT.hash_value,
                     SELF.word := LEFT.word
                 )
             );
@@ -336,7 +352,7 @@ EXPORT FuzzyStringSearch := MODULE
      *                              typically a value of 1 or 2 for single-
      *                              word values, but may be slightly larger
      *                              when dealing with longer "words";
-     *                              a value of zero will enable an 'adaptive
+     *                              a value of -1 will enable an 'adaptive
      *                              edit distance' which means that the value
      *                              for any single word will depend on the
      *                              length of that word (roughly, 1 for every
@@ -349,7 +365,7 @@ EXPORT FuzzyStringSearch := MODULE
      */
     EXPORT CreateIndex(DATASET(WordRec) words,
                        STRING newIndexPath,
-                       UNSIGNED1 maxEditDistance = 1) := FUNCTION
+                       INTEGER1 maxEditDistance = 1) := FUNCTION
         uniqueWords := TABLE(words(word != ''), {word}, word, MERGE);
         lookupData := CreateDeletionNeighborhoodHashes(uniqueWords, maxEditDistance);
         indexDef := HashLookupIndexDef(newIndexPath);
@@ -374,7 +390,7 @@ EXPORT FuzzyStringSearch := MODULE
      *                              REQUIRED
      * @param   maxEditDistance     The maximum edit distance to use when
      *                              comparing query words to dictionary words;
-     *                              a value of zero will enable an 'adaptive
+     *                              a value of -1 will enable an 'adaptive
      *                              edit distance' which means that the value
      *                              for any single word will depend on the
      *                              length of that word (roughly, 1 for every
@@ -390,7 +406,7 @@ EXPORT FuzzyStringSearch := MODULE
      */
     EXPORT DATASET(SearchResultRec) BulkSearch(DATASET(WordRec) words,
                                                STRING indexPath,
-                                               UNSIGNED1 maxEditDistance = 1) := FUNCTION
+                                               INTEGER1 maxEditDistance = 1) := FUNCTION
         uniqueWords := TABLE(words(word != ''), {word}, word, MERGE);
         wordHashes := CreateDeletionNeighborhoodHashes(uniqueWords, maxEditDistance);
         indexDef := HashLookupIndexDef(indexPath);
@@ -406,8 +422,8 @@ EXPORT FuzzyStringSearch := MODULE
                         distance := Std.Str.EditDistance(LEFT.word, RIGHT.word);
                         SELF.edit_distance := MAP
                             (
-                                maxEditDistance > 0 AND distance <= maxEditDistance                     =>  distance,
-                                maxEditDistance = 0 AND distance <= ((LENGTH(LEFT.word) - 1) DIV 4 + 1) =>  distance,
+                                maxEditDistance >= 0 AND distance <= maxEditDistance                    =>  distance,
+                                maxEditDistance < 0 AND distance <= ((LENGTH(LEFT.word) - 1) DIV 4 + 1) =>  distance,
                                 SKIP
                             ),
                         SELF.given_word := LEFT.word,
@@ -445,7 +461,7 @@ EXPORT FuzzyStringSearch := MODULE
      *                              REQUIRED
      * @param   maxEditDistance     The maximum edit distance to use when
      *                              comparing the given word to dictionary
-     *                              words; a value of zero will enable an
+     *                              words; a value of -1 will enable an
      *                              'adaptive edit distance' which means that
      *                              the value will depend on the length of
      *                              the given word (roughly, 1 for every
@@ -460,7 +476,7 @@ EXPORT FuzzyStringSearch := MODULE
      */
     EXPORT DATASET(SearchResultRec) WordSearch(STRING word,
                                                STRING indexPath,
-                                               UNSIGNED1 maxEditDistance = 1) := FUNCTION
+                                               INTEGER1 maxEditDistance = 1) := FUNCTION
         RETURN BulkSearch(DATASET([word], WordRec), indexPath, maxEditDistance);
     END;
 
@@ -495,7 +511,7 @@ EXPORT FuzzyStringSearch := MODULE
      *                              to a function that does nothing
      * @param   maxEditDistance     The maximum edit distance to use when
      *                              comparing each word to dictionary words;
-     *                              a value of zero will enable an 'adaptive
+     *                              a value of -1 will enable an 'adaptive
      *                              edit distance' which means that the value
      *                              for any single word will depend on the
      *                              length of that word (roughly, 1 for every
@@ -513,7 +529,7 @@ EXPORT FuzzyStringSearch := MODULE
     EXPORT TextSearch(STRING text,
                       STRING indexPath,
                       NormalizeWordPrototype normWordFunction = DoNothingNormalization,
-                      UNSIGNED1 maxEditDistance = 1) := FUNCTION
+                      INTEGER1 maxEditDistance = 1) := FUNCTION
         wordSet := Std.Str.SplitWords(text, ' ');
 
         PositionWordRec := RECORD(WordRec)
