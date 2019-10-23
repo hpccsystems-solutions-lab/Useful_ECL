@@ -34,7 +34,7 @@
  * This module supports an "adaptive edit distance" feature.  Rather than
  * setting a fixed maximum edit distance, you can supply a -1 value for the
  * MaxED parameter and the function will choose an appropriate value on a
- * per-word basis.  The value chosen will be basically, "1 for every four
+ * per-word basis.  The value chosen will be basically, "1 for every five
  * characters."  So, a three-character word will use a MaxED of 1, a
  * five-character word use a MaxED of 2, and so on.
  *
@@ -180,7 +180,7 @@ EXPORT FuzzyStringSearch := MODULE
      *                              edit distance' which means that the value
      *                              for any single word will depend on the
      *                              length of that word (roughly, 1 for every
-     *                              four characters)
+     *                              five characters)
      *                              REQUIRED
      *
      * @return  A new DATASET(LookupRec)
@@ -224,7 +224,7 @@ EXPORT FuzzyStringSearch := MODULE
                     StreamDataset(IEngineRowAllocator* _resultAllocator, unsigned int wordLen, const char* word, int maxEditDistance)
                         : resultAllocator(_resultAllocator), myWord(word, wordLen), isInited(false)
                     {
-                        myEditDistance = (maxEditDistance >= 0 ? maxEditDistance : (wordLen - 1) / 4 + 1);
+                        myEditDistance = (maxEditDistance >= 0 ? maxEditDistance : (wordLen - 1) / 5 + 1);
                         isStopped = (wordLen == 0);
                     }
 
@@ -356,7 +356,7 @@ EXPORT FuzzyStringSearch := MODULE
      *                              edit distance' which means that the value
      *                              for any single word will depend on the
      *                              length of that word (roughly, 1 for every
-     *                              four characters); OPTIONAL, defaults to 1
+     *                              five characters); OPTIONAL, defaults to 1
      *
      * @return  An action that creates a new index file.
      *
@@ -394,7 +394,7 @@ EXPORT FuzzyStringSearch := MODULE
      *                              edit distance' which means that the value
      *                              for any single word will depend on the
      *                              length of that word (roughly, 1 for every
-     *                              four characters); OPTIONAL, defaults to 1
+     *                              five characters); OPTIONAL, defaults to 1
      *
      * @return  A new DATASET(SearchResultRec) containing any matches.  Note
      *          that only those query words with matches from the dictionary
@@ -423,7 +423,7 @@ EXPORT FuzzyStringSearch := MODULE
                         SELF.edit_distance := MAP
                             (
                                 maxEditDistance >= 0 AND distance <= maxEditDistance                    =>  distance,
-                                maxEditDistance < 0 AND distance <= ((LENGTH(LEFT.word) - 1) DIV 4 + 1) =>  distance,
+                                maxEditDistance < 0 AND distance <= ((LENGTH(LEFT.word) - 1) DIV 5 + 1) =>  distance,
                                 SKIP
                             ),
                         SELF.given_word := LEFT.word,
@@ -465,7 +465,7 @@ EXPORT FuzzyStringSearch := MODULE
      *                              'adaptive edit distance' which means that
      *                              the value will depend on the length of
      *                              the given word (roughly, 1 for every
-     *                              four characters); OPTIONAL, defaults to 1
+     *                              five characters); OPTIONAL, defaults to 1
      *
      * @return  A new DATASET(SearchResultRec) containing any matches.  If there
      *          is no match found then an empty dataset will be returned.
@@ -515,7 +515,7 @@ EXPORT FuzzyStringSearch := MODULE
      *                              edit distance' which means that the value
      *                              for any single word will depend on the
      *                              length of that word (roughly, 1 for every
-     *                              four characters); OPTIONAL, defaults to 1
+     *                              five characters); OPTIONAL, defaults to 1
      *
      * @return  A new DATASET(TextSearchResultRec) dataset containing all of
      *          original words, their relative positions within the string,
