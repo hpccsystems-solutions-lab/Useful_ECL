@@ -36,7 +36,7 @@
  * MaxED parameter and the function will choose an appropriate value on a
  * per-word basis.  The value chosen will be basically, "1 for every five
  * characters."  So, a three-character word will use a MaxED of 1, a
- * five-character word use a MaxED of 2, and so on.
+ * six-character word use a MaxED of 2, and so on.
  *
  * This module provides data normalization only for the TextSearch() function,
  * where it is slightly harder to implement.  For dictionary creation and
