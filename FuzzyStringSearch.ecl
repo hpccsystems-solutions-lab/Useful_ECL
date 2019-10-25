@@ -19,6 +19,9 @@
  * where each record contains a query word, a dictionary word, and the
  * actual edit distance between them.
  *
+ * All words (query and dictionary) are limited to 255 characters in length.
+ * Words longer than this will be truncated.
+ *
  * A maximum edit distance ("MaxED") is provided at both index creation
  * time and at search time.  Fuzzy matches with edit distances greater than
  * the search MaxED will not be returned.  The index grows dramatically
@@ -36,7 +39,8 @@
  * MaxED parameter and the function will choose an appropriate value on a
  * per-word basis.  The value chosen will be basically, "1 for every five
  * characters."  So, a three-character word will use a MaxED of 1, a
- * six-character word use a MaxED of 2, and so on.
+ * six-character word use a MaxED of 2, and so on, up to a hardcoded
+ * maximum, currently 5.
  *
  * This module provides data normalization only for the TextSearch() function,
  * where it is slightly harder to implement.  For dictionary creation and
@@ -44,12 +48,6 @@
  * strings to uppercase or lowercase, removing space runs, etc so that all
  * values are normalized as much as possible.  Exactly what normalization
  * steps you perform depend on your use-case.
- *
- * This module does not provide any data normalization, and comparisons are
- * case-sensitive.  You should prepare both the dictionary and query
- * words by upper- or lower-casing all values, removing space runs, etc so
- * that all values are normalized as much as possible.  Exactly what
- * normalization steps you should perform depend on your use-case.
  *
  * Attributes exported by this module (detailed descriptions are inlined with
  * each exported symbol):
@@ -91,33 +89,36 @@ EXPORT FuzzyStringSearch := MODULE
     // length will be truncated
     SHARED MAX_WORD_LENGTH := 255;
 
+    // Maximum when using adaptive edit distances, don't exceed this value
+    SHARED MAX_ADAPTIVE_EDIT_DISTANCE := 5;
+
     // Simple record defining either a dictionary or query word (string)
     EXPORT WordRec := RECORD
-        STRING      word;
+        STRING                  word;
     END;
 
     // The record definition of results from BulkSearch() or Search()
     SHARED RelatedWordRec := RECORD
-        STRING      dictionary_word;
-        UNSIGNED1   edit_distance;
+        STRING                  dictionary_word;
+        UNSIGNED1               edit_distance;
     END;
 
     // The record definition of results from BulkSearch() or Search()
     EXPORT SearchResultRec := RECORD
-        STRING      given_word;
+        STRING                  given_word;
         RelatedWordRec;
     END;
 
     // The record definition of results from TextSearch()
     EXPORT TextSearchResultRec := RECORD
-        UNSIGNED2   word_pos;
-        STRING      given_word;
-        DATASET(RelatedWordRec)     related_words;
+        UNSIGNED2               word_pos;
+        STRING                  given_word;
+        DATASET(RelatedWordRec) related_words;
     END;
 
     // Record definition used to hold the deletion neighborhood hashes
     SHARED HashRec := RECORD
-        UNSIGNED8           hash_value;
+        UNSIGNED8               hash_value;
     END;
 
     // The record definition used by the dictionary index file and by
@@ -186,7 +187,10 @@ EXPORT FuzzyStringSearch := MODULE
      * @return  A new DATASET(LookupRec)
      */
     SHARED DATASET(LookupRec) CreateDeletionNeighborhoodHashes(DATASET(WordRec) words, INTEGER1 max_edit_distance) := FUNCTION
-        STREAMED DATASET(HashRec) _CreateDeletionNeighborhood(CONST STRING _one_word, INTEGER1 _max_distance, UNSIGNED2 _max_word_len = MAX_WORD_LENGTH) := EMBED(C++)
+        STREAMED DATASET(HashRec) _CreateDeletionNeighborhood(CONST STRING _one_word,
+                                                              INTEGER1 _max_distance,
+                                                              UNSIGNED2 _max_word_len = MAX_WORD_LENGTH,
+                                                              UNSIGNED2 _max_adaptive_distance = MAX_ADAPTIVE_EDIT_DISTANCE) := EMBED(C++)
             #option pure;
             #include <string>
             #include <set>
@@ -221,10 +225,10 @@ EXPORT FuzzyStringSearch := MODULE
             {
                 public:
 
-                    StreamDataset(IEngineRowAllocator* _resultAllocator, unsigned int wordLen, const char* word, int maxEditDistance)
+                    StreamDataset(IEngineRowAllocator* _resultAllocator, unsigned int wordLen, const char* word, int maxEditDistance, unsigned int maxAdaptiveDistance)
                         : resultAllocator(_resultAllocator), myWord(word, wordLen), isInited(false)
                     {
-                        myEditDistance = (maxEditDistance >= 0 ? maxEditDistance : (wordLen - 1) / 5 + 1);
+                        myEditDistance = (maxEditDistance >= 0 ? maxEditDistance : std::min(maxAdaptiveDistance, (wordLen - 1) / 5 + 1));
                         isStopped = (wordLen == 0);
                     }
 
@@ -293,7 +297,7 @@ EXPORT FuzzyStringSearch := MODULE
 
             #body
 
-            return new StreamDataset(_resultAllocator, std::min(len_one_word, (size32_t)_max_word_len), _one_word, _max_distance);
+            return new StreamDataset(_resultAllocator, std::min(len_one_word, (size32_t)_max_word_len), _one_word, _max_distance, _max_adaptive_distance);
         ENDEMBED;
 
         // Collect hashes of the deletion neighborhood,
@@ -425,8 +429,8 @@ EXPORT FuzzyStringSearch := MODULE
                         distance := Std.Str.EditDistance(LEFT.word, RIGHT.word);
                         SELF.edit_distance := MAP
                             (
-                                maxEditDistance >= 0 AND distance <= maxEditDistance                    =>  distance,
-                                maxEditDistance < 0 AND distance <= ((LENGTH(LEFT.word) - 1) DIV 5 + 1) =>  distance,
+                                maxEditDistance >= 0 AND distance <= maxEditDistance                                                        =>  distance,
+                                maxEditDistance < 0 AND distance <= MIN(MAX_ADAPTIVE_EDIT_DISTANCE, ((LENGTH(LEFT.word) - 1) DIV 5 + 1))    =>  distance,
                                 SKIP
                             ),
                         SELF.given_word := LEFT.word,
