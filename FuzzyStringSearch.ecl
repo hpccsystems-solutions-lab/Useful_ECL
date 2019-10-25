@@ -195,7 +195,7 @@ EXPORT FuzzyStringSearch := MODULE
             // Compute the 64-bit hash for a std::string value
             hash64_t HashString(const std::string& aString)
             {
-                return rtlHash64Data(aString.size(), aString.data(), 14695981039346656037LLU);
+                return rtlHash64Data(aString.size(), aString.data(), HASH64_INIT);
             }
 
             // Recursive function that deletes single characters; depth here is associated with the
@@ -358,10 +358,12 @@ EXPORT FuzzyStringSearch := MODULE
      *                              length of that word (roughly, 1 for every
      *                              five characters); OPTIONAL, defaults to 1
      *
-     * @return  An action that creates a new index file.
+     * @return  An action that creates an index file.  If a file of the same
+     *          already exists, it will be overwritten.
      *
      * @see     BulkSearch
      * @see     WordSearch
+     * @see     TextSearch
      */
     EXPORT CreateIndex(DATASET(WordRec) words,
                        STRING newIndexPath,
@@ -397,12 +399,13 @@ EXPORT FuzzyStringSearch := MODULE
      *                              five characters); OPTIONAL, defaults to 1
      *
      * @return  A new DATASET(SearchResultRec) containing any matches.  Note
-     *          that only those query words with matches from the dictionary
-     *          will appearin the result.
+     *          that only those query words with matches in the dictionary
+     *          will appear in the result.
      *
      * @see     SearchResultRec
      * @see     CreateIndex
      * @see     WordSearch
+     * @see     TextSearch
      */
     EXPORT DATASET(SearchResultRec) BulkSearch(DATASET(WordRec) words,
                                                STRING indexPath,
@@ -473,6 +476,7 @@ EXPORT FuzzyStringSearch := MODULE
      * @see     SearchResultRec
      * @see     CreateIndex
      * @see     BulkSearch
+     * @see     TextSearch
      */
     EXPORT DATASET(SearchResultRec) WordSearch(STRING word,
                                                STRING indexPath,
@@ -520,7 +524,7 @@ EXPORT FuzzyStringSearch := MODULE
      * @return  A new DATASET(TextSearchResultRec) dataset containing all of
      *          original words, their relative positions within the string,
      *          and a child dataset for each showing any possible matches
-     *          (possibly none) from the dictionary
+     *          (possibly none) from the dictionary.
      *
      * @see     CreateIndex
      * @see     BulkSearch
