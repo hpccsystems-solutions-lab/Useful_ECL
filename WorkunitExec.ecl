@@ -428,4 +428,58 @@ EXPORT WorkunitExec := MODULE
         RETURN IF(resultName != '', namedQueryResults, parsedFullQueryResults);
     END;
 
+    /**
+     * Finds all protected workunits and returns their workunit IDs;
+     *
+     * @param   espURL              The full URL for accessing the esp process
+     *                              running on the HPCC Systems cluster (this
+     *                              is typically the same URL as used to access
+     *                              ECL Watch); set to an empty string to use
+     *                              the URL of the current esp process;
+     *                              OPTIONAL, defaults to an empty string
+     * @param   username            The user name to use when connecting
+     *                              to the cluster; OPTIONAL, defaults to
+     *                              an empty string
+     * @param   userPW              The username password to use when
+     *                              connecting to the cluster; OPTIONAL,
+     *                              defaults to an empty string
+     * @param   timeoutInSeconds    The number of seconds to wait for the
+     *                              executed job to complete; use zero (0) to
+     *                              wait forever; OPTIONAL, defaults to 60
+     *
+     * @return  A new DATASET of all protected workunits; may return an empty
+     *          dataset, indicating that no protected workunits have been found
+     */
+    EXPORT AllProtectedWorkunits(STRING espURL = '',
+                                 STRING username = '',
+                                 STRING userPW = '',
+                                 UNSIGNED2 timeoutInSeconds = 0) := FUNCTION
+        myESPURL := CreateESPURL(espURL);
+        auth := CreateAuthHeaderValue(username, userPW);
+
+        QueryResultsLayout := RECORD
+            STRING  rWUID       {XPATH('Wuid')};
+            STRING  rCluster    {XPATH('Cluster')};
+            BOOLEAN rProtected  {XPATH('Protected')};
+        END;
+
+        // All workunits; we will filter later
+        queryResults := SOAPCALL
+            (
+                myESPURL,
+                'WUQuery',
+                {
+                    UNSIGNED2   pCount {XPATH('Count')} := 32767;
+                    UNSIGNED4   pStartFrom {XPATH('PageStartFrom')} := 0;
+                    UNSIGNED4   pPageSize {XPATH('PageSize')} := 32767;
+                },
+                DATASET(QueryResultsLayout),
+                XPATH('WUQueryResponse/Workunits/ECLWorkunit'),
+                HTTPHEADER('Authorization', auth),
+                TIMEOUT(60), ONFAIL(SKIP)
+            );
+
+        RETURN queryResults(rProtected);
+    END;
+
 END;
