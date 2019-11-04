@@ -426,13 +426,11 @@ EXPORT FuzzyStringSearch := MODULE
                 TRANSFORM
                     (
                         SearchResultRec,
-                        distance := Std.Str.EditDistance(LEFT.word, RIGHT.word);
-                        SELF.edit_distance := MAP
-                            (
-                                maxEditDistance >= 0 AND distance <= maxEditDistance                                                        =>  distance,
-                                maxEditDistance < 0 AND distance <= MIN(MAX_ADAPTIVE_EDIT_DISTANCE, ((LENGTH(LEFT.word) - 1) DIV 5 + 1))    =>  distance,
-                                SKIP
-                            ),
+
+                        myMaxDist := IF(maxEditDistance >= 0, maxEditDistance, MIN(MAX_ADAPTIVE_EDIT_DISTANCE, ((LENGTH(LEFT.word) - 1) DIV 5 + 1)));
+                        computedDistance := Std.Str.EditDistance(LEFT.word, RIGHT.word, myMaxDist);
+
+                        SELF.edit_distance := IF(computedDistance <= myMaxDist, computedDistance, SKIP),
                         SELF.given_word := LEFT.word,
                         SELF.dictionary_word := RIGHT.word
                     ),
