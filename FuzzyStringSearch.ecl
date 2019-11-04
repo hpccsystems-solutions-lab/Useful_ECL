@@ -37,9 +37,9 @@
  * This module supports an "adaptive edit distance" feature.  Rather than
  * setting a fixed maximum edit distance, you can supply a -1 value for the
  * MaxED parameter and the function will choose an appropriate value on a
- * per-word basis.  The value chosen will be basically, "1 for every five
+ * per-word basis.  The value chosen will be basically, "1 for every seven
  * characters."  So, a three-character word will use a MaxED of 1, a
- * six-character word use a MaxED of 2, and so on, up to a hardcoded
+ * nine-character word use a MaxED of 2, and so on, up to a hardcoded
  * maximum, currently 5.
  *
  * This module provides data normalization only for the TextSearch() function,
@@ -228,7 +228,7 @@ EXPORT FuzzyStringSearch := MODULE
                     StreamDataset(IEngineRowAllocator* _resultAllocator, unsigned int wordLen, const char* word, int maxEditDistance, unsigned int maxAdaptiveDistance)
                         : resultAllocator(_resultAllocator), myWord(word, wordLen), isInited(false)
                     {
-                        myEditDistance = (maxEditDistance >= 0 ? maxEditDistance : std::min(maxAdaptiveDistance, (wordLen - 1) / 5 + 1));
+                        myEditDistance = (maxEditDistance >= 0 ? maxEditDistance : std::min(maxAdaptiveDistance, (wordLen - 1) / 7 + 1));
                         isStopped = (wordLen == 0);
                     }
 
@@ -427,7 +427,7 @@ EXPORT FuzzyStringSearch := MODULE
                     (
                         SearchResultRec,
 
-                        myMaxDist := IF(maxEditDistance >= 0, maxEditDistance, MIN(MAX_ADAPTIVE_EDIT_DISTANCE, ((LENGTH(LEFT.word) - 1) DIV 5 + 1)));
+                        myMaxDist := IF(maxEditDistance >= 0, maxEditDistance, MIN(MAX_ADAPTIVE_EDIT_DISTANCE, ((LENGTH(LEFT.word) - 1) DIV 7 + 1)));
                         computedDistance := Std.Str.EditDistance(LEFT.word, RIGHT.word, myMaxDist);
 
                         SELF.edit_distance := IF(computedDistance <= myMaxDist, computedDistance, SKIP),
