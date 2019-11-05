@@ -25,7 +25,7 @@
  * The example code at the end of this file demonstrates how callers can
  * instantiate this module and use its functions.
  *
- * Nnamespaces, keys, and values are all of the STRING datatype.
+ * Namespaces, keys, and values are all of the STRING datatype.
  *
  * Exported functions:
  *
