@@ -54,6 +54,7 @@
  *
  *      // Record Definitions
  *      WordRec
+ *      LookupRec
  *      SearchResultRec
  *      TextSearchResultRec
  *
@@ -124,7 +125,7 @@ EXPORT FuzzyStringSearch := MODULE
 
     // The record definition used by the dictionary index file and by
     // the internal matching function
-    SHARED LookupRec := RECORD
+    EXPORT LookupRec := RECORD
         HashRec;
         WordRec;
     END;
