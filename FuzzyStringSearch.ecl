@@ -62,6 +62,7 @@
  *
  *      // Functions -- see code for parameter list
  *      DoNothingNormalization()
+ *      HashLookupIndexDef()
  *      CreateIndex()
  *      BulkSearch()
  *      WordSearch()
@@ -319,7 +320,7 @@ EXPORT FuzzyStringSearch := MODULE
     END;
 
     /**
-     * Internal helper definition
+     * INDEX definition for the hash lookup
      *
      * @param   path    Full logical pathname to the dictionary index file;
      *                  index may be physically present or not; REQUIRED
@@ -330,7 +331,7 @@ EXPORT FuzzyStringSearch := MODULE
      * @see     BulkSearch
      * @see     Search
      */
-    SHARED HashLookupIndexDef(STRING path) := INDEX
+    EXPORT HashLookupIndexDef(STRING path) := INDEX
         (
             {LookupRec.hash_value},
             {LookupRec},
