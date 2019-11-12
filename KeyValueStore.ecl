@@ -99,7 +99,7 @@ EXPORT KeyValueStore(STRING username = '',
 
     // The URL that will be used by all SOAPCALL invocations
     TRIMMED_URL := TRIM(espURL, ALL);
-    SHARED MY_ESP_URL := IF(TRIMMED_URL != '', TRIMMED_URL, Std.File.GetEspURL(MY_USERNAME, MY_USER_PW)) + '/WsStore/?ver_=' + WS_STORE_SERVICE_VERSION;
+    SHARED MY_ESP_URL := IF(TRIMMED_URL != '', TRIMMED_URL, Std.File.GetEspURL()) + '/WsStore/?ver_=' + WS_STORE_SERVICE_VERSION;
 
     /**
      * Helper for function for setting the has_exception field within a
