@@ -218,8 +218,10 @@ EXPORT WorkunitExec := MODULE
         END;
 
         // Find the latest running (or blocked) version of a workunit that
-        // matches the given jobName
-        queryResults := SOAPCALL
+        // matches the given jobName; note that this is a lightweight query
+        // that may return results from a cache, so we'll need to verify
+        // the results with a follow-up call to WUInfo
+        initialQueryResults := SOAPCALL
             (
                 myESPURL,
                 'WUQuery',
@@ -231,7 +233,50 @@ EXPORT WorkunitExec := MODULE
                 HTTPHEADER('Authorization', auth),
                 TIMEOUT(timeoutInSeconds), ONFAIL(SKIP)
             );
-        latestWUID := TOPN(queryResults(rState IN ['running', 'blocked']), 1, -rWUID)[1];
+
+        filteredInitialResults := initialQueryResults(rState IN ['running', 'blocked']);
+
+        infoResults := PROJECT
+            (
+                filteredInitialResults,
+                TRANSFORM
+                    (
+                        QueryResultsLayout,
+                        info := SOAPCALL
+                            (
+                                myESPURL,
+                                'WUInfo',
+                                {
+                                    STRING  pWuid                       {XPATH('Wuid')} := LEFT.rWUID;
+                                    STRING  pTruncateEclTo64k           {XPATH('TruncateEclTo64k')} := '1';
+                                    STRING  pIncludeExceptions          {XPATH('IncludeExceptions')} := '0';
+                                    STRING  pIncludeGraphs              {XPATH('IncludeGraphs')} := '0';
+                                    STRING  pIncludeSourceFiles         {XPATH('IncludeSourceFiles')} := '0';
+                                    STRING  pIncludeResults             {XPATH('IncludeResults')} := '0';
+                                    STRING  pIncludeResultsViewNames    {XPATH('IncludeResultsViewNames')} := '0';
+                                    STRING  pIncludeVariables           {XPATH('IncludeVariables')} := '0';
+                                    STRING  pIncludeTimers              {XPATH('IncludeTimers')} := '0';
+                                    STRING  pIncludeDebugValues         {XPATH('IncludeDebugValues')} := '0';
+                                    STRING  pIncludeApplicationValues   {XPATH('IncludeApplicationValues')} := '0';
+                                    STRING  pIncludeWorkflows           {XPATH('IncludeWorkflows')} := '0';
+                                    STRING  pIncludeXmlSchemas          {XPATH('IncludeXmlSchemas')} := '0';
+                                    STRING  pIncludeResourceURLs        {XPATH('IncludeResourceURLs')} := '0';
+                                    STRING  pIncludeECL                 {XPATH('IncludeECL')} := '0';
+                                    STRING  pIncludeHelpers             {XPATH('IncludeHelpers')} := '0';
+                                    STRING  pIncludeAllowedClusters     {XPATH('IncludeAllowedClusters')} := '0';
+                                    STRING  pIncludeTotalClusterTime    {XPATH('IncludeTotalClusterTime')} := '0';
+                                    STRING  pSuppressResultSchemas      {XPATH('SuppressResultSchemas')} := '0';
+                                },
+                                DATASET(QueryResultsLayout),
+                                XPATH('WUInfoResponse/Workunit'),
+                                HTTPHEADER('Authorization', auth),
+                                TIMEOUT(timeoutInSeconds), ONFAIL(SKIP)
+                            );
+                        SELF := info[1]
+                    )
+            );
+
+        latestWUID := TOPN(infoResults(rState IN ['running', 'blocked']), 1, -rWUID)[1];
 
         RETURN latestWUID.rWUID;
     END;
