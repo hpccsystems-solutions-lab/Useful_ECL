@@ -201,7 +201,7 @@ EXPORT FuzzyStringSearch := MODULE
             // Compute the 64-bit hash for a std::string value
             hash64_t HashString(const std::string& aString)
             {
-                return rtlHash64Data(aString.size(), aString.data(), 14695981039346656037LLU);
+                return rtlHash64Data(aString.size(), aString.data(), HASH64_INIT);
             }
 
             // Recursive function that deletes single characters; depth here is associated with the
