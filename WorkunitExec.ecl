@@ -381,15 +381,12 @@ EXPORT WorkunitExec := MODULE
      * @param   resultName          The name of the result to retrieve; use
      *                              an empty string to retrieve all results
      *                              from the workunit; REQUIRED
-     * @param   espIPAddress        The IP address of the ESP service, as
-     *                              a string; REQUIRED
-     * @param   espScheme           The scheme (http, https, etc) to use
-     *                              when constructing the full URL to the
-     *                              ESP service; OPTIONAL, defaults
-     *                              to 'http'
-     * @param   espPort             The port number to use when connecting
-     *                              to the cluster; OPTIONAL, defaults to
-     *                              8010
+     * @param   espURL              The full URL for accessing the esp process
+     *                              running on the HPCC Systems cluster (this
+     *                              is typically the same URL as used to access
+     *                              ECL Watch); set to an empty string to use
+     *                              the URL of the current esp process;
+     *                              OPTIONAL, defaults to an empty string
      * @param   username            The user name to use when connecting
      *                              to the cluster; OPTIONAL, defaults to
      *                              an empty string
