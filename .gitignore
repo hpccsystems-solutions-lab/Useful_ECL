@@ -1,2 +1,3 @@
 .DS_Store
-eclcc.log
+**/eclcc.log
+**/.eclcc
