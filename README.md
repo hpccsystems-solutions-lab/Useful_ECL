@@ -31,6 +31,7 @@ own ECL bundle.  Please see
 * [FuzzyStringSearch.ecl](FuzzyStringSearch.ecl)
 * [KeyValueStore.ecl](KeyValueStore.ecl)
 * [NotifyHelper.ecl](NotifyHelper.ecl)
+* [NumericStats.ecl](NumericStats.ecl)
 * [PlatformVersionCheck.ecl](PlatformVersionCheck.ecl)
 * [RandomFilename.ecl](RandomFilename.ecl)
 * [ReadLocalConfigFile.ecl](ReadLocalConfigFile.ecl)
