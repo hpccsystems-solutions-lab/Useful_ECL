@@ -19,9 +19,6 @@
  * where each record contains a query word, a dictionary word, and the
  * actual edit distance between them.
  *
- * All words (query and dictionary) are limited to 255 characters in length.
- * Words longer than this will be truncated.
- *
  * A maximum edit distance ("MaxED") is provided at both index creation
  * time and at search time.  Fuzzy matches with edit distances greater than
  * the search MaxED will not be returned.  The index grows dramatically
@@ -48,6 +45,10 @@
  * strings to uppercase or lowercase, removing space runs, etc so that all
  * values are normalized as much as possible.  Exactly what normalization
  * steps you perform depend on your use-case.
+ *
+ * The module supports UTF-8 strings for both the dictionary and query words.
+ * It uses the current locale when computing the actual edit distance between
+ * two UTF-8 strings.
  *
  * Attributes exported by this module (detailed descriptions are inlined with
  * each exported symbol):
@@ -87,34 +88,33 @@ IMPORT Std;
 
 EXPORT FuzzyStringSearch := MODULE
 
-    // Maximum length of a word we will work with; words exceeding this
-    // length will be truncated
-    SHARED MAX_WORD_LENGTH := 255;
+    // Locale used for computing final edit distance
+    SHARED EDIT_DISTANCE_LOCALE := 'en_US.UTF-8';
 
     // Maximum when using adaptive edit distances, don't exceed this value
     SHARED MAX_ADAPTIVE_EDIT_DISTANCE := 5;
 
     // Simple record defining either a dictionary or query word (string)
     EXPORT WordRec := RECORD
-        STRING                  word;
+        UTF8                    word;
     END;
 
     // The record definition of results from BulkSearch() or Search()
     SHARED RelatedWordRec := RECORD
-        STRING                  dictionary_word;
+        UTF8                    dictionary_word;
         UNSIGNED1               edit_distance;
     END;
 
     // The record definition of results from BulkSearch() or Search()
     EXPORT SearchResultRec := RECORD
-        STRING                  given_word;
+        UTF8                    given_word;
         RelatedWordRec;
     END;
 
     // The record definition of results from TextSearch()
     EXPORT TextSearchResultRec := RECORD
         UNSIGNED2               word_pos;
-        STRING                  given_word;
+        UTF8                    given_word;
         DATASET(RelatedWordRec) related_words;
     END;
 
@@ -144,7 +144,7 @@ EXPORT FuzzyStringSearch := MODULE
      * @see     TextSearch
      * @see     DoNothingNormalization
      */
-    EXPORT STRING NormalizeWordPrototype(STRING oneWord);
+    EXPORT UTF8 NormalizeWordPrototype(UTF8 oneWord);
 
     /**
      * Concrete instantiation of the NormalizeWordPrototype() prototype
@@ -157,7 +157,7 @@ EXPORT FuzzyStringSearch := MODULE
      * @see     NormalizeWordPrototype
      * @see     TextSearch
      */
-    EXPORT STRING DoNothingNormalization(STRING oneWord) := FUNCTION
+    EXPORT UTF8 DoNothingNormalization(UTF8 oneWord) := FUNCTION
         RETURN oneWord;
     END;
 
@@ -189,34 +189,42 @@ EXPORT FuzzyStringSearch := MODULE
      * @return  A new DATASET(LookupRec)
      */
     SHARED DATASET(LookupRec) CreateDeletionNeighborhoodHashes(DATASET(WordRec) words, INTEGER1 max_edit_distance) := FUNCTION
-        STREAMED DATASET(HashRec) _CreateDeletionNeighborhood(CONST STRING _one_word,
+        STREAMED DATASET(HashRec) _CreateDeletionNeighborhood(CONST UTF8 _one_word,
                                                               INTEGER1 _max_distance,
-                                                              UNSIGNED2 _max_word_len = MAX_WORD_LENGTH,
                                                               UNSIGNED2 _max_adaptive_distance = MAX_ADAPTIVE_EDIT_DISTANCE) := EMBED(C++)
             #option pure;
             #include <string>
             #include <set>
+
+            #define UCHAR_TYPE uint16_t
+            #include <unicode/unistr.h>
+
             typedef std::set<hash64_t> HashValueSet;
 
-            // Compute the 64-bit hash for a std::string value
-            hash64_t HashString(const std::string& aString)
+            // Compute the 64-bit hash for a Unicode string value
+            hash64_t HashString(const icu::UnicodeString& aString)
             {
-                return rtlHash64Data(aString.size(), aString.data(), HASH64_INIT);
+                std::string     outString;
+
+                aString.toUTF8String(outString);
+
+                return rtlHash64Data(outString.size(), outString.data(), HASH64_INIT);
             }
 
             // Recursive function that deletes single characters; depth here is associated with the
             // the MaxED value
-            void PopulateHashSet(const std::string& aWord, unsigned int depth, HashValueSet& aSet)
+            void PopulateHashSet(const icu::UnicodeString& aWord, unsigned int depth, HashValueSet& aSet)
             {
                 // Abort if we've gone deep enough or if the word is too short
                 // (don't allow single-character substrings in the result)
-                if (depth > 0 && aWord.size() > 2)
+                if (depth > 0 && aWord.countChar32() > 2)
                 {
-                    for (unsigned int x = 0; x < aWord.size(); x++)
-                    {
-                        std::string     myWord(aWord);
+                    UnicodeString   myWord;
 
-                        myWord.erase(x, 1);
+                    for (int32_t x = 0; x < aWord.countChar32(); x++)
+                    {
+                        myWord = aWord;
+                        myWord.remove(x, 1);
                         aSet.insert(HashString(myWord));
                         PopulateHashSet(myWord, depth - 1, aSet);
                     }
@@ -228,7 +236,7 @@ EXPORT FuzzyStringSearch := MODULE
                 public:
 
                     StreamDataset(IEngineRowAllocator* _resultAllocator, unsigned int wordLen, const char* word, int maxEditDistance, unsigned int maxAdaptiveDistance)
-                        : resultAllocator(_resultAllocator), myWord(word, wordLen), isInited(false)
+                        : resultAllocator(_resultAllocator), myWord(word, wordLen, "UTF-8"), isInited(false)
                     {
                         myEditDistance = (maxEditDistance >= 0 ? maxEditDistance : std::min(maxAdaptiveDistance, (wordLen - 1) / 7 + 1));
                         isStopped = (wordLen == 0);
@@ -289,7 +297,7 @@ EXPORT FuzzyStringSearch := MODULE
 
                 private:
 
-                    std::string                     myWord;         // Word we are processing
+                    icu::UnicodeString              myWord;         // Word we are processing
                     unsigned int                    myEditDistance; // The max edit distance we're calculating
                     HashValueSet                    hashSet;        // Contains unique hash values
                     HashValueSet::const_iterator    hashSetIter;    // Iterator used to track hash items for nextRow()
@@ -299,7 +307,7 @@ EXPORT FuzzyStringSearch := MODULE
 
             #body
 
-            return new StreamDataset(_resultAllocator, std::min(len_one_word, (size32_t)_max_word_len), _one_word, _max_distance, _max_adaptive_distance);
+            return new StreamDataset(_resultAllocator, rtlUtf8Size(len_one_word, _one_word), _one_word, _max_distance, _max_adaptive_distance);
         ENDEMBED;
 
         // Collect hashes of the deletion neighborhood,
@@ -374,7 +382,7 @@ EXPORT FuzzyStringSearch := MODULE
     EXPORT CreateIndex(DATASET(WordRec) words,
                        STRING newIndexPath,
                        INTEGER1 maxEditDistance = 1) := FUNCTION
-        uniqueWords := TABLE(words(word != ''), {word}, word, MERGE);
+        uniqueWords := TABLE(words(word != U8''), {word}, word, MERGE);
         lookupData := CreateDeletionNeighborhoodHashes(uniqueWords, maxEditDistance);
         indexDef := HashLookupIndexDef(newIndexPath);
 
@@ -416,7 +424,7 @@ EXPORT FuzzyStringSearch := MODULE
     EXPORT DATASET(SearchResultRec) BulkSearch(DATASET(WordRec) words,
                                                STRING indexPath,
                                                INTEGER1 maxEditDistance = 1) := FUNCTION
-        uniqueWords := TABLE(words(word != ''), {word}, word, MERGE);
+        uniqueWords := TABLE(words(word != U8''), {word}, word, MERGE);
         wordHashes := CreateDeletionNeighborhoodHashes(uniqueWords, maxEditDistance);
         indexDef := HashLookupIndexDef(indexPath);
 
@@ -430,7 +438,7 @@ EXPORT FuzzyStringSearch := MODULE
                         SearchResultRec,
 
                         myMaxDist := IF(maxEditDistance >= 0, maxEditDistance, MIN(MAX_ADAPTIVE_EDIT_DISTANCE, ((LENGTH(LEFT.word) - 1) DIV 7 + 1)));
-                        computedDistance := Std.Str.EditDistance(LEFT.word, RIGHT.word, myMaxDist);
+                        computedDistance := Std.Uni.EditDistance(LEFT.word, RIGHT.word, '', myMaxDist);
 
                         SELF.edit_distance := IF(computedDistance <= myMaxDist, computedDistance, SKIP),
                         SELF.given_word := LEFT.word,
@@ -482,7 +490,7 @@ EXPORT FuzzyStringSearch := MODULE
      * @see     BulkSearch
      * @see     TextSearch
      */
-    EXPORT DATASET(SearchResultRec) WordSearch(STRING word,
+    EXPORT DATASET(SearchResultRec) WordSearch(UTF8 word,
                                                STRING indexPath,
                                                INTEGER1 maxEditDistance = 1) := FUNCTION
         RETURN BulkSearch(DATASET([word], WordRec), indexPath, maxEditDistance);
@@ -534,11 +542,11 @@ EXPORT FuzzyStringSearch := MODULE
      * @see     BulkSearch
      * @see     WordSearch
      */
-    EXPORT TextSearch(STRING text,
+    EXPORT TextSearch(UTF8 text,
                       STRING indexPath,
                       NormalizeWordPrototype normWordFunction = DoNothingNormalization,
                       INTEGER1 maxEditDistance = 1) := FUNCTION
-        wordSet := Std.Str.SplitWords(text, ' ');
+        wordSet := (SET OF UTF8)Std.Uni.SplitWords(text, ' ');
 
         PositionWordRec := RECORD(WordRec)
             UNSIGNED2   word_pos;
@@ -546,7 +554,7 @@ EXPORT FuzzyStringSearch := MODULE
 
         wordDS := PROJECT
             (
-                DATASET(wordSet, {STRING w}),
+                DATASET(wordSet, {UTF8 w}),
                 TRANSFORM
                     (
                         PositionWordRec,
@@ -659,10 +667,10 @@ OUTPUT(results);
 
 IMPORT FuzzyStringSearch;
 
-STRING NormalizeWordUpperCase(STRING oneWord) := FUNCTION
-    upperWord := Std.Str.ToUpperCase(oneWord);
-    noBeginningPunct := REGEXREPLACE('^[^[:alnum:]]+', upperWord, '');
-    noEndingPunct := REGEXREPLACE('[^[:alnum:]]+$', noBeginningPunct, '');
+UTF8 NormalizeWordUpperCase(UTF8 oneWord) := FUNCTION
+    upperWord := Std.Uni.ToUpperCase(oneWord);
+    noBeginningPunct := REGEXREPLACE(U8'^[^[:alnum:]]+', upperWord, U8'');
+    noEndingPunct := REGEXREPLACE(U8'[^[:alnum:]]+$', noBeginningPunct, U8'');
 
     RETURN noEndingPunct;
 END;
