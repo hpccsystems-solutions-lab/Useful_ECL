@@ -139,7 +139,7 @@ EXPORT BlendJoin(lhs, rhs, joinConditionStr, resultRec, joinFlagsStr = '\'\'', p
             typeStr[..7] = 'set of '                                    =>  's', // any kind of SET
             REGEXFIND('(unicode)|(utf)|(string)', typeStr)              =>  'c', // string-like
             REGEXFIND('data', typeStr)                                  =>  'x', // data
-            typeStr = 'boolean'                                         =>  'n', // boolean, treat like a numeric here
+            typeStr = 'boolean'                                         =>  'b', // boolean
             REGEXFIND('(integer)|(unsigned)|(decimal)|(real)', typeStr) =>  'n', // numeric
             'r' // default is embedded record
         );
@@ -165,6 +165,8 @@ EXPORT BlendJoin(lhs, rhs, joinConditionStr, resultRec, joinFlagsStr = '\'\'', p
                                         SELF.%@name% := (%@type%)(IF(TRIM((STRING)%prefDS%.%@name%, LEFT, RIGHT) != '', %prefDS%.%@name%, %altDS%.%@name%)),
                                     #ELSEIF(%GeneralType%(%'@type'%) = 'n')
                                         SELF.%@name% := (%@type%)(IF(%prefDS%.%@name% != 0, %prefDS%.%@name%, %altDS%.%@name%)),
+                                    #ELSEIF(%GeneralType%(%'@type'%) = 'b')
+                                        SELF.%@name% := (%@type%)(%prefDS%.%@name%),
                                     #ELSEIF(%GeneralType%(%'@type'%) = 'x')
                                         SELF.%@name% := (%@type%)(IF(LENGTH(%prefDS%.%@name%) > 0, %prefDS%.%@name%, %altDS%.%@name%)),
                                     #ELSE
