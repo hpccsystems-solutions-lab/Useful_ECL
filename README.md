@@ -43,6 +43,7 @@ own ECL bundle.  Please see
 * [Sets.ecl](Sets.ecl)
 * [Str.ecl](Str.ecl)
 * [UUID.ecl](UUID.ecl)
+* [VerticalSlice.ecl](VerticalSlice.ecl)
 * [WholeUpdate.ecl](WholeUpdate.ecl)
 * [WordNGrams.ecl](WordNGrams.ecl)
 
