@@ -53,8 +53,7 @@ VerticalSlice(inFile, fieldListStr) := FUNCTIONMACRO
         );
 ENDMACRO;
 
-/**
-
+/******************************************************************************
 // Example:
 
 ChildRec := {UNSIGNED1 age};
@@ -82,8 +81,8 @@ ds0 := DATASET
 
 ds := NOFOLD(ds0);
 
-res := VerticalSlice(ds, 'ages');
+res := VerticalSlice(ds, 'ages'); // Would be TABLE(ds, {ages}) if that worked
 
 OUTPUT(res);
 
-*/
+******************************************************************************/
