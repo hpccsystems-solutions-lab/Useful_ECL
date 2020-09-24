@@ -11,6 +11,7 @@
  * Origin:  https://github.com/dcamper/Useful_ECL
  */
 EXPORT UNSIGNED8 Factorial(UNSIGNED1 n) := EMBED(C++)
+    #option pure;
     unsigned __int64 result = 0;
 
     if (n <= 65)

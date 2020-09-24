@@ -28,6 +28,7 @@ IMPORT Std;
  *          contain any ASCII characters.
  */
 UNSIGNED8 StringToPrimeFactorProduct(CONST VARSTRING s) := EMBED(C++)
+    #option pure;
     __uint64    res = 1;
 
     while (*s)

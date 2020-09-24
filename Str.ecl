@@ -20,6 +20,7 @@ EXPORT Str := MODULE
      * @return  The decoded string
      */
     EXPORT STRING URLDecode(CONST STRING s) := EMBED(C++)
+        #option pure;
         #include <string.h>
         #body
         const char HEX2DEC[256] =
@@ -97,6 +98,7 @@ EXPORT Str := MODULE
      * @return  The encoded string
      */
     EXPORT STRING URLEncode(CONST STRING s) := EMBED(C++)
+        #option pure;
         #include <string.h>
         #body
         const char SAFE[256] =
@@ -217,6 +219,7 @@ EXPORT Str := MODULE
      * @return  TRUE if target exists within source, FALSE otherwise
      */
     EXPORT BOOLEAN IsSubstring(CONST STRING source, CONST STRING target, BOOLEAN no_case = FALSE) := EMBED(C++)
+        #option pure;
         if (lenSource > 0 && lenTarget > 0 && lenTarget <= lenSource)
         {
             for (unsigned int i = 0; i < (lenSource - lenTarget + 1); i++)
