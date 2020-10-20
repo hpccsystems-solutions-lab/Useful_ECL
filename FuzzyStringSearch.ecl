@@ -88,9 +88,6 @@ IMPORT Std;
 
 EXPORT FuzzyStringSearch := MODULE
 
-    // Locale used for computing final edit distance
-    SHARED EDIT_DISTANCE_LOCALE := 'en_US.UTF-8';
-
     // Maximum when using adaptive edit distances, don't exceed this value
     SHARED MAX_ADAPTIVE_EDIT_DISTANCE := 5;
 
