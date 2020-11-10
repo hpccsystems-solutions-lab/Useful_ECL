@@ -9,16 +9,16 @@
  * @param   inFile      The recordset to examine
  *
  * @return  A new recordset showing the number of records currently hosted on
- *          each Thor slave process, along with a skew value in the same
+ *          each Thor worker process, along with a skew value in the same
  *          format as the skew shown in workunit graphs (a percentage value,
- *          ranging from -100 to (100 * (number of Thor slaves - 1)))
+ *          ranging from -100 to (100 * (number of Thor workers - 1)))
  *
  * Origin:  https://github.com/dcamper/Useful_ECL
  */
 EXPORT DatasetSkew(VIRTUAL DATASET inFile) := FUNCTION
     IMPORT Std;
 
-    // Calculate the perfect distribution of records for a Thor slave
+    // Calculate the perfect distribution of records for a Thor worker
     perfectDist := COUNT(inFile) / Std.System.Thorlib.Nodes();
 
     // Get the number of records stored on each node

@@ -11,7 +11,7 @@
  * binary representations to string and vice-versa are also included.
  *
  * The code here relies on libuuid being installed on all HPCC nodes that will
- * execute it.  For completeness, that means all Thor slave nodes, all Roxie
+ * execute it.  For completeness, that means all Thor worker nodes, all Roxie
  * nodes, and the hthor node.  Both the library and header file for UUID need
  * to be installed on the eclccserver node as well, so that code compiles
  * correctly.  This code assumes that the header is located at <uuid/uuid.h>,
