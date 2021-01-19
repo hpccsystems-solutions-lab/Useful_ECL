@@ -55,6 +55,75 @@ EXPORT WorkunitExec := MODULE
 
         RETURN myESPURL;
     END;
+    
+    /**
+     * Find workunits by name.
+     *
+     * @param   jobName             The jobname of the workunit to execute
+     *                              as a string; REQUIRED
+     * @param   jobState            The state of the job to execute
+     *                              as a string; OPTIONAL, defaults to
+     *                              'compiled'; 
+     * @param   espURL              The full URL for accessing the esp process
+     *                              running on the HPCC Systems cluster (this
+     *                              is typically the same URL as used to access
+     *                              ECL Watch); set to an empty string to use
+     *                              the URL of the current esp process;
+     *                              OPTIONAL, defaults to an empty string
+     * @param   clusterName         The name of the cluster in which to look
+     *                              for the compiled workunit with provided
+     *                              jobName; OPTIONAL, defaults to 'thor' cluster
+     * @param   username            The user name to use when connecting
+     *                              to the cluster; OPTIONAL, defaults to
+     *                              an empty string
+     * @param   userPW              The username password to use when
+     *                              connecting to the cluster; OPTIONAL,
+     *                              defaults to an empty string
+     * @param   timeoutInSeconds    The number of seconds to wait for the
+     *                              executed job to complete; use zero (0) to
+     *                              wait forever; OPTIONAL, defaults to zero
+     *
+     * @return  A dataset in RunResultsLayout format containing run
+     *          results.  If no workunit matching the given jobname can be
+     *          found then an empty dataset will be returned.  Because
+     *          this function returns a value, you should wrap a call to
+     *          it in an EVALUATE() if you need to execute it in an
+     *          action context.
+     */
+    EXPORT FindWorkunitsByName(STRING jobName,
+                               STRING jobState = 'compiled',
+                               STRING espURL = '',
+                               STRING clusterName = 'thor',
+                               STRING username = '',
+                               STRING userPW = '',
+                               UNSIGNED2 timeoutInSeconds = 0) := FUNCTION
+        myESPURL := CreateESPURL(espURL);
+        auth := CreateAuthHeaderValue(username, userPW);
+
+        QueryResultsLayout := RECORD
+            STRING  rWUID       {XPATH('Wuid')};
+            STRING  rCluster    {XPATH('Cluster')};
+        END;
+
+        // Find the latest compiled version of a workunit that matches the
+        // given jobName
+        queryResults := SOAPCALL
+            (
+                myESPURL,
+                'WUQuery',
+                {
+                    STRING pJobname {XPATH('Jobname')} := jobName;
+                    STRING pState {XPATH('State')} := jobState;
+                    STRING pCluster {XPATH('Cluster')} := clusterName;
+                },
+                DATASET(QueryResultsLayout),
+                XPATH('WUQueryResponse/Workunits/ECLWorkunit'),
+                HTTPHEADER('Authorization', auth),
+                TIMEOUT(60), ONFAIL(SKIP)
+            );
+
+        RETURN queryResults;
+    END;  
 
     /**
      * Record structure containing arguments to be passed to the workunit
@@ -135,27 +204,7 @@ EXPORT WorkunitExec := MODULE
                                      UNSIGNED2 timeoutInSeconds = 0) := FUNCTION
         myESPURL := CreateESPURL(espURL);
         auth := CreateAuthHeaderValue(username, userPW);
-
-        QueryResultsLayout := RECORD
-            STRING  rWUID       {XPATH('Wuid')};
-            STRING  rCluster    {XPATH('Cluster')};
-        END;
-
-        // Find the latest compiled version of a workunit that matches the
-        // given jobName
-        queryResults := SOAPCALL
-            (
-                myESPURL,
-                'WUQuery',
-                {
-                    STRING pJobname {XPATH('Jobname')} := jobName;
-                    STRING pState {XPATH('State')} := 'compiled';
-                },
-                DATASET(QueryResultsLayout),
-                XPATH('WUQueryResponse/Workunits/ECLWorkunit'),
-                HTTPHEADER('Authorization', auth),
-                TIMEOUT(60), ONFAIL(SKIP)
-            );
+        queryResults := FindWorkunitsByName(jobName, 'compiled', espURL, 'thor', username, userPW, timeoutInSeconds);
         latestWUID := TOPN(queryResults, 1, -rWUID)[1];
 
         // Call the found workunit with the arguments provided
@@ -522,6 +571,84 @@ EXPORT WorkunitExec := MODULE
             );
 
         RETURN queryResults(rProtected);
-    END;
+    END;  
 
+    /**
+     * Record structure used to represent the results of a published
+     * workunit.
+     */
+     EXPORT PublishResultsLayout := RECORD
+          STRING  wuid      {XPATH('Wuid')};
+          STRING  results   {XPATH('results')};
+          STRING  QuerySet  {XPATH('QuerySet')};
+          STRING  QueryName {XPATH('QueryName')};
+          STRING  QueryId   {XPATH('QueryId')};
+      END;
+
+    /**
+     * Finds the latest version of a compiled workunit, by name, and publish it as query.
+     *
+     * @param   jobName             The jobname of the workunit to execute
+     *                              as a string; REQUIRED
+     * @param   espURL              The full URL for accessing the esp process
+     *                              running on the HPCC Systems cluster (this
+     *                              is typically the same URL as used to access
+     *                              ECL Watch); set to an empty string to use
+     *                              the URL of the current esp process; 
+     *                              OPTIONAL, defaults to an empty string
+     * @param   clusterName         The name of the cluster in which to look
+     *                              for the compiled workunit with provided
+     *                              jobName; OPTIONAL, defaults to 'roxie' cluster
+     * @param   targetCluster       The name of the cluster in which to publish
+     *                              the compiled workunit with provided
+     *                              jobName; OPTIONAL, defaults to 'roxie' cluster
+     * @param   username            The user name to use when connecting
+     *                              to the cluster; OPTIONAL, defaults to
+     *                              an empty string
+     * @param   userPW              The username password to use when
+     *                              connecting to the cluster; OPTIONAL,
+     *                              defaults to an empty string
+     * @param   timeoutInSeconds    The number of seconds to wait for the
+     *                              executed job to complete; use zero (0) to
+     *                              wait forever; OPTIONAL, defaults to zero
+     *
+     * @return  A dataset in RunResultsLayout format containing run
+     *          results.  If no workunit matching the given jobname can be
+     *          found then an empty dataset will be returned.  Because
+     *          this function returns a value, you should wrap a call to
+     *          it in an EVALUATE() if you need to execute it in an
+     *          action context.
+     */
+    EXPORT PublishCompiledWorkunitByName(STRING jobName,
+                                         STRING espURL = '',
+                                         STRING clusterName = 'roxie',
+                                         STRING targetCluster = 'roxie',
+                                         STRING username = '',
+                                         STRING userPW = '',
+                                         UNSIGNED2 timeoutInSeconds = 0) := FUNCTION
+        myESPURL := CreateESPURL(espURL);
+        auth := CreateAuthHeaderValue(username, userPW);
+        queryResults := FindWorkunitsByName(jobName, 'compiled', espURL, clusterName, username, userPW, timeoutInSeconds);
+        latestWUID := TOPN(queryResults, 1, -rWUID)[1];
+
+        // Publish the found workunit as query
+        publishResults := SOAPCALL
+            (
+                myESPURL,
+                'WUPublishWorkunit',
+                {
+                    STRING      targetCluster  {XPATH('Cluster')} := targetCluster;
+                    STRING      jobname        {XPATH('JobName')} := jobName;
+                    STRING      WUID           {XPATH('Wuid')} := latestWUID.rWUID;
+                    UNSIGNED4   activate       {XPATH('Activate')} := 1;
+                },
+                DATASET(PublishResultsLayout),
+                XPATH('WUPublishWorkunitResponse'),
+                HTTPHEADER('Authorization', auth),
+                TIMEOUT(timeoutInSeconds), ONFAIL(SKIP)
+            );
+
+        RETURN IF(EXISTS(queryResults), publishResults, DATASET([], PublishResultsLayout));
+    END;
+    
 END;
