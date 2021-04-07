@@ -28,7 +28,7 @@
  *
  * Origin:  https://github.com/dcamper/Useful_ECL
  */
-EXPORT ScopeContentsAsTempSuperFile(STRING fileScope
+EXPORT ScopeContentsAsTempSuperFile(STRING fileScope,
                                     BOOLEAN includeLogicalFiles = TRUE,
                                     BOOLEAN includeSuperFiles = FALSE) := FUNCTION
     IMPORT Std;
