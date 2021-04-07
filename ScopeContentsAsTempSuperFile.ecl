@@ -40,7 +40,7 @@ EXPORT ScopeContentsAsTempSuperFile(STRING fileScope,
         (
             Std.File.LogicalFileList
                 (
-                    filePattern,
+                    REGEXREPLACE('^~', filePattern, ''),
                     includeNormal := includeLogicalFiles,
                     includeSuper := includeSuperFiles
                 )
