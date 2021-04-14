@@ -1,0 +1,20 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "HPCC-Playground",
+			"type": "ecl",
+			"request": "launch",
+			"protocol": "https",
+			"serverAddress": "play.hpccsystems.com",
+			"port": 18010,
+			"rejectUnauthorized": false,
+			"targetCluster": "thor",
+			"eclccPath": "${config:ecl.eclccPath}",
+			"eclccArgs": [],
+			"resultLimit": 100,
+			"user": "vscode_user",
+			"password": ""
+		}
+	]
+}
