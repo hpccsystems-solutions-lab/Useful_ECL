@@ -10,7 +10,7 @@ ecl bundle install https://github.com/hpcc-systems/LogisticRegression.git
 ecl bundle install https://github.com/hpcc-systems/SupportVectorMachines.git
 ecl bundle install https://github.com/hpcc-systems/KMeans.git
 ecl bundle install https://github.com/hpcc-systems/TextVectors.git
-ecl bundle install https://github.com/hpcc-systems/GPU-Deep-Learning.git
+ecl bundle install https://github.com/hpcc-systems/GNN.git
 ecl bundle install https://github.com/hpcc-systems/DataPatterns.git
 ecl bundle install https://github.com/hpcc-systems/DataMgmt.git
 ecl bundle install https://github.com/hpcc-systems/Visualizer.git
