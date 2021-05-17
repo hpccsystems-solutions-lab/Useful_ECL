@@ -55,7 +55,7 @@ EXPORT WorkunitExec := MODULE
 
         RETURN myESPURL;
     END;
-    
+
     /**
      * Find workunits by name.
      *
@@ -63,7 +63,7 @@ EXPORT WorkunitExec := MODULE
      *                              as a string; REQUIRED
      * @param   jobState            The state of the job to execute
      *                              as a string; OPTIONAL, defaults to
-     *                              'compiled'; 
+     *                              'compiled';
      * @param   espURL              The full URL for accessing the esp process
      *                              running on the HPCC Systems cluster (this
      *                              is typically the same URL as used to access
@@ -72,7 +72,9 @@ EXPORT WorkunitExec := MODULE
      *                              OPTIONAL, defaults to an empty string
      * @param   clusterName         The name of the cluster in which to look
      *                              for the compiled workunit with provided
-     *                              jobName; OPTIONAL, defaults to 'thor' cluster
+     *                              jobName; may be an empty string, which means
+     *                              that all clusters will be searched; OPTIONAL,
+     *                              defaults to an empty string
      * @param   username            The user name to use when connecting
      *                              to the cluster; OPTIONAL, defaults to
      *                              an empty string
@@ -93,7 +95,7 @@ EXPORT WorkunitExec := MODULE
     EXPORT FindWorkunitsByName(STRING jobName,
                                STRING jobState = 'compiled',
                                STRING espURL = '',
-                               STRING clusterName = 'thor',
+                               STRING clusterName = '',
                                STRING username = '',
                                STRING userPW = '',
                                UNSIGNED2 timeoutInSeconds = 0) := FUNCTION
@@ -123,7 +125,7 @@ EXPORT WorkunitExec := MODULE
             );
 
         RETURN queryResults;
-    END;  
+    END;
 
     /**
      * Record structure containing arguments to be passed to the workunit
@@ -204,7 +206,16 @@ EXPORT WorkunitExec := MODULE
                                      UNSIGNED2 timeoutInSeconds = 0) := FUNCTION
         myESPURL := CreateESPURL(espURL);
         auth := CreateAuthHeaderValue(username, userPW);
-        queryResults := FindWorkunitsByName(jobName, 'compiled', espURL, 'thor', username, userPW, timeoutInSeconds);
+        queryResults := FindWorkunitsByName
+            (
+                jobName,
+                jobState := 'compiled',
+                espURL := espURL,
+                clusterName := '',
+                username := username,
+                userPW := userPW,
+                timeoutInSeconds := timeoutInSeconds
+            );
         latestWUID := TOPN(queryResults, 1, -rWUID)[1];
 
         // Call the found workunit with the arguments provided
@@ -571,7 +582,7 @@ EXPORT WorkunitExec := MODULE
             );
 
         RETURN queryResults(rProtected);
-    END;  
+    END;
 
     /**
      * Record structure used to represent the results of a published
@@ -594,7 +605,7 @@ EXPORT WorkunitExec := MODULE
      *                              running on the HPCC Systems cluster (this
      *                              is typically the same URL as used to access
      *                              ECL Watch); set to an empty string to use
-     *                              the URL of the current esp process; 
+     *                              the URL of the current esp process;
      *                              OPTIONAL, defaults to an empty string
      * @param   clusterName         The name of the cluster in which to look
      *                              for the compiled workunit with provided
@@ -628,7 +639,16 @@ EXPORT WorkunitExec := MODULE
                                          UNSIGNED2 timeoutInSeconds = 0) := FUNCTION
         myESPURL := CreateESPURL(espURL);
         auth := CreateAuthHeaderValue(username, userPW);
-        queryResults := FindWorkunitsByName(jobName, 'compiled', espURL, clusterName, username, userPW, timeoutInSeconds);
+        queryResults := FindWorkunitsByName
+            (
+                jobName,
+                jobState := 'compiled',
+                espURL := espURL,
+                clusterName := clusterName,
+                username := username,
+                userPW := userPW,
+                timeoutInSeconds := timeoutInSeconds
+            );
         latestWUID := TOPN(queryResults, 1, -rWUID)[1];
 
         // Publish the found workunit as query
@@ -650,5 +670,5 @@ EXPORT WorkunitExec := MODULE
 
         RETURN IF(EXISTS(queryResults), publishResults, DATASET([], PublishResultsLayout));
     END;
-    
+
 END;
