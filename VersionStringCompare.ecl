@@ -3,7 +3,7 @@
  * to indicate that the first argument is less than, equal to, or
  * greater than the second argument.
  *
- * Versions are roughly delimited by decimal points and compared in "chunks",
+ * Versions are roughly delimited by punctuation and compared in "chunks",
  * but alpha strings are compared separately and do not need to be delimited
  * (example: 1.5b2 is compared in chunks of '1', '5', 'b' and '2').  Any
  * number of chunks can be included in a version string.
