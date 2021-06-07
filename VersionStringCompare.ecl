@@ -225,7 +225,8 @@ ds := DATASET
             , {'6b1', '6.0'}                // -1 (<)
             , {'6.1.2', '6.a.b'}            // 1 (>)
         ],
-        DataRec
+        DataRec,
+        DISTRIBUTED
     );
 
 res := PROJECT
@@ -239,5 +240,5 @@ res := PROJECT
             )
     );
 
-OUTPUT(res);
+OUTPUT(res, ALL);
 */
