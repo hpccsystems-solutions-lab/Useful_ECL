@@ -16,7 +16,7 @@
  *        reversed (e.g. 1.5 > 1.5b1)
  *      - Alpha characters are compared case-insensitive (1.1a1 == 1.1A1)
  *      - Versions that begin with a decimal point will have a zero
- *        zero prepended prior to testing
+ *        prepended prior to testing
  *      - An empty version string is less than a non-empty string
  *        (e.g. '' < '1.2')
  *      - Two empty strings are equal ('' == '')
@@ -74,7 +74,7 @@ EXPORT INTEGER1 VersionStringCompare(STRING v1, STRING v2) := EMBED(C++)
         {
             char    ch = version1[pos1];
 
-            if (parsingNum1 && ch >= '0' && ch <= '9')
+            if (parsingNum1 && isdigit(ch))
             {
                 bin1 += ch;
                 ++pos1;
@@ -97,7 +97,7 @@ EXPORT INTEGER1 VersionStringCompare(STRING v1, STRING v2) := EMBED(C++)
         {
             char    ch = version2[pos2];
 
-            if (parsingNum1 && ch >= '0' && ch <= '9')
+            if (parsingNum1 && isdigit(ch))
             {
                 bin2 += ch;
                 ++pos2;
