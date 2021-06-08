@@ -2,8 +2,7 @@ IMPORT Std;
 
 /***
  * Removes all logical subfiles from a superfile, leaving any
- * sub-superfiles intact.  There is an underlying assumption that all logical
- * files found by this function are owned by only one superfile.
+ * sub-superfiles intact.
  *
  * @param   superfilePath   The path to the superfile
  * @param   delete          If TRUE, physically delete the logical subfiles;
