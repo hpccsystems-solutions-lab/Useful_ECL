@@ -195,7 +195,6 @@ EXPORT Str := MODULE
         RETURN printableOnly;
     END;
 
-
     /**
      * Test for the presence of a substring within another string.  Supports
      * case-insensitive searching.  Note that if either the source or target
@@ -240,6 +239,32 @@ EXPORT Str := MODULE
 
         return false;
 
+    ENDEMBED;
+
+    /**
+     * Implementation of the DJB2 string hash algorithm, designed by
+     * Daniel J. Bernstein.
+     *
+     * @param   s           The string to hash; REQUIRED
+     *
+     * @return  An unsigned 64 bit hash value.  Note that an empty
+     *          string will return 5381 (a magic number for this hash)
+     */
+    EXPORT UNSIGNED8 DJB2(CONST STRING s) := EMBED(C++)
+        #option pure;
+
+        unsigned __int64 hash = 5381;
+        uint32_t c = 0;
+        const char* ch = s;
+
+        while (c < lenS)
+        {
+            hash = ((hash << 5) + hash) + *ch;
+            ++ch;
+            ++c;
+        }
+
+        return hash;
     ENDEMBED;
 
 END;
