@@ -196,6 +196,8 @@ EXPORT FuzzyStringSearch := MODULE
             #define UCHAR_TYPE uint16_t
             #include <unicode/unistr.h>
 
+            #body
+
             typedef std::set<hash64_t> HashValueSet;
 
             // Compute the 64-bit hash for a Unicode string value
@@ -301,8 +303,6 @@ EXPORT FuzzyStringSearch := MODULE
                     bool                            isInited;
                     bool                            isStopped;
             };
-
-            #body
 
             return new StreamDataset(_resultAllocator, rtlUtf8Size(len_one_word, _one_word), _one_word, _max_distance, _max_adaptive_distance);
         ENDEMBED;

@@ -62,6 +62,8 @@ EXPORT WordNGrams := MODULE
         #include <string>
         #include <vector>
 
+        #body
+
         #define IS_DELIMITER(x) ((::ispunct(x) != 0 && x != '\'') || ::isspace(x))
 
         class StreamDataset : public RtlCInterface, implements IRowStream
@@ -185,8 +187,6 @@ EXPORT WordNGrams := MODULE
                 uint32_t                    currentGram;
                 std::vector<std::string>    wordList;
         };
-
-        #body
 
         return new StreamDataset(_resultAllocator, s, lenS, min_gram, max_gram, min_word_len);
     ENDEMBED;
