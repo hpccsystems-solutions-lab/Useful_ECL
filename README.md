@@ -29,6 +29,7 @@ own ECL bundle.  Please see
 * [DatasetSkew.ecl](DatasetSkew.ecl)
 * [Factorial.ecl](Factorial.ecl)
 * [FuzzyStringSearch.ecl](FuzzyStringSearch.ecl)
+* [Geo](Geo.ecl)
 * [GroupedNumericStats.ecl](GroupedNumericStats.ecl)
 * [NotifyHelper.ecl](NotifyHelper.ecl)
 * [PlatformVersionCheck.ecl](PlatformVersionCheck.ecl)
