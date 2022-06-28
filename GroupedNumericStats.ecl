@@ -27,7 +27,7 @@
  *
  * Origin:  https://github.com/dcamper/Useful_ECL
  */
-GroupedNumericStats(inFile, valueField, groupingFieldsStr, maxModes = 5) := FUNCTIONMACRO
+EXPORT GroupedNumericStats(inFile, valueField, groupingFieldsStr, maxModes = 5) := FUNCTIONMACRO
     #UNIQUENAME(myGroupingFields);
     #SET(myGroupingFields, TRIM(groupingFieldsStr, ALL));
 
