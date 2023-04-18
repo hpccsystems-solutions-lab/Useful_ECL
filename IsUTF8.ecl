@@ -1,5 +1,10 @@
 /**
  * Function for determining if a string contains UTF-8 characters or not.
+ * Note that if you are processing an ECL STRING value then this function
+ * will always return FALSE because the value has already been converted
+ * to an ECL STRING (high ASCII, at best).  For an accurate assessment,
+ * the argument should be a UTF8 or DATA value from the caller's
+ * perspective.
  *
  * @param   str         The string to check; REQUIRED
  * @param   validate    If TRUE, check/validate the entire string; if FALSE,
