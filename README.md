@@ -31,6 +31,7 @@ own ECL bundle.  Please see
 * [FuzzyStringSearch.ecl](FuzzyStringSearch.ecl)
 * [Geo](Geo.ecl)
 * [GroupedNumericStats.ecl](GroupedNumericStats.ecl)
+* [IsUTF8](IsUTF8.ecl)
 * [NotifyHelper.ecl](NotifyHelper.ecl)
 * [PlatformVersionCheck.ecl](PlatformVersionCheck.ecl)
 * [RandomFilename.ecl](RandomFilename.ecl)
