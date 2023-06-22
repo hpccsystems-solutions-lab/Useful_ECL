@@ -27,6 +27,7 @@ own ECL bundle.  Please see
 * [BWR_ShowPlatformConstants.ecl](BWR/BWR_ShowPlatformConstants.ecl)
 * [ConcatFieldValues.ecl](ConcatFieldValues.ecl)
 * [DatasetSkew.ecl](DatasetSkew.ecl)
+* [ExportZipArchive.ecl](ExportZipArchive.ecl)
 * [Factorial.ecl](Factorial.ecl)
 * [FuzzyStringSearch.ecl](FuzzyStringSearch.ecl)
 * [Geo](Geo.ecl)
