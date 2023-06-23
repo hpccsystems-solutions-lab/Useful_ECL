@@ -49,7 +49,7 @@ EXPORT ExportZipArchive(outData,
     LOCAL %outLayout% := {STRING rec};
 
     #UNIQUENAME(AsQuoted);
-    LOCAL %AsQuoted%(STRING s) := IF(quote != '' AND separator != '' AND Std.Str.Find(s, separator, 1) = 0, s, quote + s + quote);
+    LOCAL %AsQuoted%(STRING s) := IF(quote = '' OR separator = '' OR Std.Str.Find(s, separator, 1) = 0, s, quote + s + quote);
 
     #SET(needsDelim, 0);
     #UNIQUENAME(headerStr);
