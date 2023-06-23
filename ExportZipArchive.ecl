@@ -9,6 +9,10 @@
  *
  * For large files, the time and space savings are considerable.
  *
+ * To create something that looks like a .csv file, use:
+ *      separator := ','
+ *      quote := '"'
+ *
  * The default values represent the task of "create a tab-delimited
  * zip file of the data."
  *
