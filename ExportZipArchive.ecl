@@ -22,13 +22,21 @@
  *                          will be appended to the path, and the
  *                          file that will be extracted will be name
  *                          given here; REQUIRED
- * @param   fieldDelimiter  The field delimiter, as a STRING; OPTIONAL,
+ * @param   separator       The field delimiter, as a STRING; OPTIONAL,
  *                          defaults to a tab character
+ * @param   quote           The character used to quote string values that
+ *                          contain the SEPARATOR value; OPTIONAL,
+ *                          defaults to an empty string
  * @param   includeHeader   If TRUE, the first line of the output will
  *                          contain the name of the fields delimited by
- *                          'fieldDelimiter'; OPTIONAL, defaults to TRUE
+ *                          'separator'; OPTIONAL, defaults to TRUE
  */
-EXPORT ExportZipArchive(outData, outPath, fieldDelimiter = '\'\t\'', includeHeader = TRUE) := MACRO
+EXPORT ExportZipArchive(outData,
+                        outPath,
+                        separator = '\'\t\'',
+                        quote = '\'\'',
+                        includeHeader = TRUE) := MACRO
+    IMPORT Std;
     LOADXML('<xml/>');
     #EXPORTXML(outDataFields, RECORDOF(outData));
     #UNIQUENAME(needsDelim);
@@ -40,24 +48,19 @@ EXPORT ExportZipArchive(outData, outPath, fieldDelimiter = '\'\t\'', includeHead
     #UNIQUENAME(outLayout);
     LOCAL %outLayout% := {STRING rec};
 
+    #UNIQUENAME(AsQuoted);
+    LOCAL %AsQuoted%(STRING s) := IF(quote != '' AND separator != '' AND Std.Str.Find(s, separator, 1) = 0, s, quote + s + quote);
+
     #SET(needsDelim, 0);
-    #UNIQUENAME(header);
-    LOCAL %header% :=   #FOR(outDataFields)
+    #UNIQUENAME(headerStr);
+    LOCAL %headerStr% :=   #FOR(outDataFields)
                             #FOR(Field)
-                                #IF(%needsDelim% = 1) + fieldDelimiter + #END
-                                %'@name'%
+                                #IF(%needsDelim% = 1) + separator + #END
+                                %AsQuoted%(%'@name'%)
                                 #SET(needsDelim, 1)
                             #END
                         #END
                         + '\n';
-
-    #UNIQUENAME(headerDS);
-    LOCAL %headerDS% := IF
-        (
-            includeHeader,
-            DATASET([%header%], %outLayout%),
-            DATASET([], %outLayout%)
-        );
 
     #SET(needsDelim, 0);
     #UNIQUENAME(rewrittenDataDS);
@@ -69,8 +72,8 @@ EXPORT ExportZipArchive(outData, outPath, fieldDelimiter = '\'\t\'', includeHead
                     %outLayout%,
                     SELF.rec := #FOR(outDataFields)
                                     #FOR(Field)
-                                        #IF(%needsDelim% = 1) + fieldDelimiter + #END
-                                        #EXPAND('(STRING)LEFT.' + %'@name'%)
+                                        #IF(%needsDelim% = 1) + separator + #END
+                                        %AsQuoted%(#EXPAND('(STRING)LEFT.' + %'@name'%))
                                         #SET(needsDelim, 1)
                                     #END
                                 #END
@@ -78,11 +81,8 @@ EXPORT ExportZipArchive(outData, outPath, fieldDelimiter = '\'\t\'', includeHead
                 )
         );
 
-    #UNIQUENAME(fullRewriteDS);
-    LOCAL %fullRewriteDS% := %headerDS% & %rewrittenDataDS%;
-
     #UNIQUENAME(WriteFunc);
-    LOCAL %WriteFunc%(STREAMED DATASET(%outLayout%) ds, VARSTRING path) := EMBED(C++)
+    LOCAL %WriteFunc%(STREAMED DATASET(%outLayout%) ds, VARSTRING path, VARSTRING header) := EMBED(C++)
         #option library archive
 
         #include "archive.h"
@@ -119,6 +119,14 @@ EXPORT ExportZipArchive(outData, outPath, fieldDelimiter = '\'\t\'', includeHead
         archive_entry_set_filetype(entryPtr, AE_IFREG);
         archive_entry_set_perm(entryPtr, 0644);
         archive_write_header(archivePtr, entryPtr);
+
+        if (header && header[0])
+        {
+            if (archive_write_data(archivePtr, header, strlen(header)) < 0)
+            {
+                rtlFail(archive_errno(archivePtr), archive_error_string(archivePtr));
+            }
+        }
 
         while(true)
         {
@@ -161,7 +169,7 @@ EXPORT ExportZipArchive(outData, outPath, fieldDelimiter = '\'\t\'', includeHead
         archive_write_free(archivePtr);
     ENDEMBED;
 
-    %WriteFunc%(%fullRewriteDS%, %myOutPath%);
+    %WriteFunc%(%rewrittenDataDS%, %myOutPath%, %headerStr%);
 ENDMACRO;
 
 /*=====================================================================================
