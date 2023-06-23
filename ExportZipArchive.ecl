@@ -53,14 +53,19 @@ EXPORT ExportZipArchive(outData,
 
     #SET(needsDelim, 0);
     #UNIQUENAME(headerStr);
-    LOCAL %headerStr% :=   #FOR(outDataFields)
-                            #FOR(Field)
-                                #IF(%needsDelim% = 1) + separator + #END
-                                %AsQuoted%(%'@name'%)
-                                #SET(needsDelim, 1)
-                            #END
-                        #END
-                        + '\n';
+    LOCAL %headerStr% := IF
+        (
+            includeHeader,
+                #FOR(outDataFields)
+                    #FOR(Field)
+                        #IF(%needsDelim% = 1) + separator + #END
+                        %AsQuoted%(%'@name'%)
+                        #SET(needsDelim, 1)
+                    #END
+                #END
+                + '\n',
+            ''
+        );
 
     #SET(needsDelim, 0);
     #UNIQUENAME(rewrittenDataDS);
