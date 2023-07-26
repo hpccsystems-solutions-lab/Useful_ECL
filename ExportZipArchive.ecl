@@ -62,9 +62,6 @@ EXPORT ExportZipArchive(outData,
             includeHeader,
                 #FOR(outDataFields)
                     #FOR(Field)
-                        #IF(%{@isRecord}% = 1 OR %{@isDataset}% = 1)
-                            #ERROR('Only flat datasets are supported')
-                        #END
                         #IF(%needsDelim% = 1) + separator + #END
                         %AsQuoted%(%'@name'%)
                         #SET(needsDelim, 1)
@@ -84,6 +81,9 @@ EXPORT ExportZipArchive(outData,
                     %outLayout%,
                     SELF.rec := #FOR(outDataFields)
                                     #FOR(Field)
+                                        #IF(%{@isRecord}% = 1 OR %{@isDataset}% = 1)
+                                            #ERROR('Only flat datasets are supported')
+                                        #END
                                         #IF(%needsDelim% = 1) + separator + #END
                                         %AsQuoted%(#EXPAND('(STRING)LEFT.' + %'@name'%))
                                         #SET(needsDelim, 1)
