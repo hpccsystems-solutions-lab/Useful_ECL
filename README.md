@@ -19,6 +19,9 @@ own ECL bundle.  Please see
 
 ## Snippet Categories
 
+### Complete Examples
+* [FuzzyMatching](FuzzyMatching) - Creating indexes supporting fuzzy string matching, then search them. Stopword lists are supported.
+
 ### Programming
 * [BitSet.ecl](BitSet.ecl)
 * [BlendJoin.ecl](BlendJoin.ecl)
