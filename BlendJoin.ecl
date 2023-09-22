@@ -49,7 +49,7 @@
  * @return  A new dataset that is the result of the JOIN, with a resultRec
  *          RECORD definition
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 EXPORT BlendJoin(lhs, rhs, joinConditionStr, resultRec, joinFlagsStr = '\'\'', prefer = '\'lhs\'') := FUNCTIONMACRO
     LOADXML('<xml/>');

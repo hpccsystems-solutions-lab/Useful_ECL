@@ -10,7 +10,7 @@
  *
  * @return  The input dataset with the find-and-replace actions performed
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 EXPORT ReplaceCharInDataset(inFile, target, replacement) := FUNCTIONMACRO
     IMPORT Std;

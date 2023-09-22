@@ -16,7 +16,7 @@
  *
  * @return  The cleansed name in the same data type as the argument.
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 EXPORT CleanBusinessName(name) := FUNCTIONMACRO
     IMPORT Std;

@@ -30,7 +30,7 @@
  *          from the inFile.inField, with the value of delim as a separator,
  *          in record order.
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 ConcatFieldValues(inFile, outFieldType, inField, delim = '\'\'', doTrim = FALSE) := FUNCTIONMACRO
     #UNIQUENAME(outField);

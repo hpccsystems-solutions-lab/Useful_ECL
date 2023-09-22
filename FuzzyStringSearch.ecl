@@ -81,7 +81,7 @@
  * Thomas Bocek, Ela Hunt, and Burkhard Stiller
  * (https://fastss.csg.uzh.ch/ifi-2007.02.pdf).
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 
 IMPORT Std;

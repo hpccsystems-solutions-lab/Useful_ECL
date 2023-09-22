@@ -10,7 +10,7 @@
  *
  * @return  The new recordset
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 EXPORT ConvertTopLevelFieldsToNewDataType(inFile, newDataType = '\'STRING\'') := FUNCTIONMACRO
     IMPORT Std;

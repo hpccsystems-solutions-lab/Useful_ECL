@@ -77,7 +77,7 @@
  *
  * All tests pass if the workunit completes successfully (there is no output).
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 
 EXPORT BitSet := MODULE, FORWARD

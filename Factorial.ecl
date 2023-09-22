@@ -8,7 +8,7 @@
  * 
  * @return  The factorial of argument, or zero if it cannot be computed.
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 EXPORT UNSIGNED8 Factorial(UNSIGNED1 n) := EMBED(C++)
     #option pure;

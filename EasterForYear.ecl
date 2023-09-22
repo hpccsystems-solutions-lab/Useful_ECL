@@ -9,6 +9,8 @@ IMPORT Std;
  * 
  * @return	The date Easter falls on in the given
  *			year, in Std.Date.Date_t format.
+ *
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 EXPORT EasterForYear(INTEGER2 year) := FUNCTION
     c := year DIV 100;

@@ -13,7 +13,7 @@
  *          format as the skew shown in workunit graphs (a percentage value,
  *          ranging from -100 to (100 * (number of Thor workers - 1)))
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 EXPORT DatasetSkew(VIRTUAL DATASET inFile) := FUNCTION
     IMPORT Std;

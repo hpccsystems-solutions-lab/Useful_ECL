@@ -30,7 +30,7 @@
  *
  * Example code can be found at the bottom of this file.
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 EXPORT INTEGER1 VersionStringCompare(STRING v1, STRING v2) := EMBED(C++)
     #option pure;

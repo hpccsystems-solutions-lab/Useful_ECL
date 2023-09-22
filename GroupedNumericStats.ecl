@@ -25,7 +25,7 @@
  *              standard deviation
  *              modes (child dataset)
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 EXPORT GroupedNumericStats(inFile, valueField, groupingFieldsStr, maxModes = 5) := FUNCTIONMACRO
     #UNIQUENAME(myGroupingFields);

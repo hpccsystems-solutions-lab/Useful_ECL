@@ -33,7 +33,7 @@
  *      AsString(CONST UUIDBin_t uuid)
  *      AsBinary(CONST UUIDStr_t uuid)
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 EXPORT UUID := MODULE
 

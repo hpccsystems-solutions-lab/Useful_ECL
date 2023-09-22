@@ -26,7 +26,7 @@
  *          used in a DATASET or INDEX function.  If no matching regular
  *          files can be found, an empty string is returned instead.
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 EXPORT ScopeContentsAsTempSuperFile(STRING fileScope,
                                     BOOLEAN includeLogicalFiles = TRUE,

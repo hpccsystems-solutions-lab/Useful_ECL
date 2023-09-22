@@ -37,7 +37,7 @@
  * BWRs (one that would wait for a notification, and one that triggers it) can
  * be found at the end of the file in comment blocks.
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 
 IMPORT Std;

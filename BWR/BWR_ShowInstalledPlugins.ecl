@@ -25,7 +25,7 @@
  *
  * This code assumes that the platform is running on a Linux operating system.
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 IMPORT Std;
 

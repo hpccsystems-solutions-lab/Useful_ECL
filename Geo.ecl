@@ -17,7 +17,7 @@
  *
  * Example calls are located at the end of this file.
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 EXPORT Geo := MODULE
 

@@ -8,7 +8,7 @@
  *
  * @return  The contents of the file as a string
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 
 IMPORT Std;

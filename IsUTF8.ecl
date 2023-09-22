@@ -21,7 +21,7 @@
  *          If an empty string is passed to the function, TRUE will be returned
  *          if validate is FALSE, and FALSE will be returned if validate is TRUE.
  *
- * @see
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 EXPORT BOOLEAN IsUTF8(UTF8 str, BOOLEAN validate = TRUE) := EMBED(C++)
     if (lenStr == 0)

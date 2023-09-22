@@ -28,7 +28,7 @@
  *          not exist then an empty dictionary is returned.
  *          Example usage:  myParamValue := myConfig[key].value;
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 
 IMPORT Std;

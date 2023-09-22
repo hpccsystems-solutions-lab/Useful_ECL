@@ -25,7 +25,7 @@ The code in this directory is a complete example of one way to fuzzy search for 
 
 The two files at the top level are used by other code:
 
-- [CleanBusinessName.ecl](CleanBusinessName.ecl): A function that accepts a UTF-8 string representing a business name and then returns a normalized and "cleaned" version of that same string.  The function is used when both indexing and querying.  Note that the heavy lifting is performed by an external function found in the [Useful_ECL](https://github.com/dcamper/Useful_ECL) repo.
+- [CleanBusinessName.ecl](CleanBusinessName.ecl): A function that accepts a UTF-8 string representing a business name and then returns a normalized and "cleaned" version of that same string.  The function is used when both indexing and querying.  Note that the heavy lifting is performed by an external function found in the [Useful_ECL](https://github.com/hpccsystems-solutions-lab/Useful_ECL) repo.
 - [Constants.ecl](Constants.ecl): Constants used in other parts of the code. Most of them have to do with file naming, but one -- ``INDEX_STOPWORD_WORD_FREQ_CUTOFF`` -- is crucial to creating the stopword dataset. The idea behind that constant is basically, "if a user searched for a single common word and it returned too many results, what number is 'too many results'?"  The example code uses 5000, but it should be adjusted for your use case.  The ``INDEX_STOPWORD_WORD_FREQ_CUTOFF`` is used to create the final stopword list that is loaded by the index build code.  The implication here is that if you modify the constant then that will change the contents of the stopword list, which further means that you will have to rebuild the search index as well.
 
 ## Creating a stopword list

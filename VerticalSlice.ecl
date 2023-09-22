@@ -20,7 +20,7 @@
  * @return  A copy of inFile containing only those fields referenced
  *          in fieldListStr.
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 VerticalSlice(inFile, fieldListStr) := FUNCTIONMACRO
     #UNIQUENAME(needsDelim);

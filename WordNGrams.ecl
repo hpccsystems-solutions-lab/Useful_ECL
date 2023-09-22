@@ -16,7 +16,7 @@
  *
  * Sample calls shown at the end of the file.
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 IMPORT Std;
 

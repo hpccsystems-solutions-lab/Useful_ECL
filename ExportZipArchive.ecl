@@ -34,6 +34,8 @@
  * @param   includeHeader   If TRUE, the first line of the output will
  *                          contain the name of the fields delimited by
  *                          'separator'; OPTIONAL, defaults to TRUE
+ *
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 EXPORT ExportZipArchive(outData,
                         outPath,

@@ -10,7 +10,7 @@
  * line.  You can use a different file by changing the value of the
  * WORD_FILE_PATH attribute.
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 IMPORT Std;
 

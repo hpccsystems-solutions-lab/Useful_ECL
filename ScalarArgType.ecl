@@ -8,7 +8,7 @@
  *          If the general type cannot be determined then the exact type
  *          (as determined by #GETDATATYPE()) will be returned.
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 EXPORT ScalarArgType(value) := FUNCTIONMACRO
     #UNIQUENAME(outType);

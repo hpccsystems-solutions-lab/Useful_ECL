@@ -3,7 +3,7 @@
  * from ECL.  Some of them are hard-coded (like the ECL version numbers) while
  * others are determined when the HPCC platform starts up.
  *
- * Origin:  https://github.com/dcamper/Useful_ECL
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 OUTPUT(__ecl_legacy_mode__, NAMED('__ecl_legacy_mode__'));
 OUTPUT(__ecl_version__, NAMED('__ecl_version__'));
