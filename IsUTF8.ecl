@@ -3,10 +3,9 @@
  * Note that if you are processing an ECL STRING value then this function
  * will always return FALSE because the value has already been converted
  * to an ECL STRING (high ASCII, at best).  For an accurate assessment,
- * the argument should be a UTF8 or DATA value from the caller's
- * perspective.
+ * the argument should be cast as a DATA value.
  *
- * @param   str         The string to check; REQUIRED
+ * @param   str         The string to check, coerced as DATA; REQUIRED
  * @param   validate    If TRUE, check/validate the entire string; if FALSE,
  *                      abort scan at first valid UTF-8 character found and
  *                      return TRUE; OPTIONAL, defaults to TRUE
@@ -23,7 +22,9 @@
  *
  * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
-EXPORT BOOLEAN IsUTF8(UTF8 str, BOOLEAN validate = TRUE) := EMBED(C++)
+EXPORT BOOLEAN IsUTF8(DATA str, BOOLEAN validate = TRUE) := EMBED(C++)
+    #option pure;
+
     if (lenStr == 0)
         return !validate;
 
@@ -38,7 +39,7 @@ EXPORT BOOLEAN IsUTF8(UTF8 str, BOOLEAN validate = TRUE) := EMBED(C++)
             // ASCII; continue scan
             bytes += 1;
         }
-        else if ((0xC2 <= bytes[0] && bytes[0] <= 0xDF) && (0x80 <= bytes[1] && bytes[1] <= 0xBF))
+        else if ((0xC2 <= bytes[0] && bytes[0] <= 0xDF) && (bytes+1 < endPtr) && (0x80 <= bytes[1] && bytes[1] <= 0xBF))
         {
             // Valid non-overlong 2-byte
             if (validate)
@@ -51,7 +52,7 @@ EXPORT BOOLEAN IsUTF8(UTF8 str, BOOLEAN validate = TRUE) := EMBED(C++)
                 return true;
             }
         }
-        else if (bytes[0] == 0xE0 && (0xA0 <= bytes[1] && bytes[1] <= 0xBF) && (0x80 <= bytes[2] && bytes[2] <= 0xBF))
+        else if (bytes[0] == 0xE0 && (bytes+2 < endPtr) && (0xA0 <= bytes[1] && bytes[1] <= 0xBF) && (0x80 <= bytes[2] && bytes[2] <= 0xBF))
         {
             // Valid excluding overlongs
             if (validate)
@@ -64,7 +65,7 @@ EXPORT BOOLEAN IsUTF8(UTF8 str, BOOLEAN validate = TRUE) := EMBED(C++)
                 return true;
             }
         }
-        else if (((0xE1 <= bytes[0] && bytes[0] <= 0xEC) || bytes[0] == 0xEE || bytes[0] == 0xEF) && (0x80 <= bytes[1] && bytes[1] <= 0xBF) && (0x80 <= bytes[2] && bytes[2] <= 0xBF))
+        else if (((0xE1 <= bytes[0] && bytes[0] <= 0xEC) || bytes[0] == 0xEE || bytes[0] == 0xEF) && (bytes+2 < endPtr) && (0x80 <= bytes[1] && bytes[1] <= 0xBF) && (0x80 <= bytes[2] && bytes[2] <= 0xBF))
         {
             // Valid straight 3-byte
             if (validate)
@@ -77,7 +78,7 @@ EXPORT BOOLEAN IsUTF8(UTF8 str, BOOLEAN validate = TRUE) := EMBED(C++)
                 return true;
             }
         }
-        else if (bytes[0] == 0xED && (0x80 <= bytes[1] && bytes[1] <= 0x9F) && (0x80 <= bytes[2] && bytes[2] <= 0xBF))
+        else if (bytes[0] == 0xED && (bytes+2 < endPtr) && (0x80 <= bytes[1] && bytes[1] <= 0x9F) && (0x80 <= bytes[2] && bytes[2] <= 0xBF))
         {
             // Valid excluding surrogates
             if (validate)
@@ -90,7 +91,7 @@ EXPORT BOOLEAN IsUTF8(UTF8 str, BOOLEAN validate = TRUE) := EMBED(C++)
                 return true;
             }
         }
-        else if (bytes[0] == 0xF0 && (0x90 <= bytes[1] && bytes[1] <= 0xBF) && (0x80 <= bytes[2] && bytes[2] <= 0xBF) && (0x80 <= bytes[3] && bytes[3] <= 0xBF))
+        else if (bytes[0] == 0xF0 && (bytes+3 < endPtr) && (0x90 <= bytes[1] && bytes[1] <= 0xBF) && (0x80 <= bytes[2] && bytes[2] <= 0xBF) && (0x80 <= bytes[3] && bytes[3] <= 0xBF))
         {
             // Valid planes 1-3
             if (validate)
@@ -103,7 +104,7 @@ EXPORT BOOLEAN IsUTF8(UTF8 str, BOOLEAN validate = TRUE) := EMBED(C++)
                 return true;
             }
         }
-        else if ((0xF1 <= bytes[0] && bytes[0] <= 0xF3) && (0x80 <= bytes[1] && bytes[1] <= 0xBF) && (0x80 <= bytes[2] && bytes[2] <= 0xBF) && (0x80 <= bytes[3] && bytes[3] <= 0xBF))
+        else if ((0xF1 <= bytes[0] && bytes[0] <= 0xF3) && (bytes+3 < endPtr) && (0x80 <= bytes[1] && bytes[1] <= 0xBF) && (0x80 <= bytes[2] && bytes[2] <= 0xBF) && (0x80 <= bytes[3] && bytes[3] <= 0xBF))
         {
             // Valid planes 4-15
             if (validate)
@@ -116,7 +117,7 @@ EXPORT BOOLEAN IsUTF8(UTF8 str, BOOLEAN validate = TRUE) := EMBED(C++)
                 return true;
             }
         }
-        else if (bytes[0] == 0xF4 && (0x80 <= bytes[1] && bytes[1] <= 0x8F) && (0x80 <= bytes[2] && bytes[2] <= 0xBF) && (0x80 <= bytes[3] && bytes[3] <= 0xBF))
+        else if (bytes[0] == 0xF4 && (bytes+3 < endPtr) && (0x80 <= bytes[1] && bytes[1] <= 0x8F) && (0x80 <= bytes[2] && bytes[2] <= 0xBF) && (0x80 <= bytes[3] && bytes[3] <= 0xBF))
         {
             // Valid plane 16
             if (validate)
