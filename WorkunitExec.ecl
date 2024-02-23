@@ -585,6 +585,65 @@ EXPORT WorkunitExec := MODULE
     END;
 
     /**
+     * Delete an existing workunit from a cluster.
+     *
+     * @param   workunitID          The WUID of the workunit containing the
+     *                              result; REQUIRED
+     * @param   espURL              The full URL for accessing the esp process
+     *                              running on the HPCC Systems cluster (this
+     *                              is typically the same URL as used to access
+     *                              ECL Watch); set to an empty string to use
+     *                              the URL of the current esp process;
+     *                              OPTIONAL, defaults to an empty string
+     * @param   username            The user name to use when connecting
+     *                              to the cluster; OPTIONAL, defaults to
+     *                              an empty string
+     * @param   userPW              The username password to use when
+     *                              connecting to the cluster; OPTIONAL,
+     *                              defaults to an empty string
+     * @param   timeoutInSeconds    The number of seconds to wait for the
+     *                              executed job to complete; use zero (0) to
+     *                              wait forever; OPTIONAL, defaults to 60
+     *
+     * @return  TRUE if the workunit was successfully deleted, FALSE otherwise.
+     */
+    EXPORT DeleteWorkunitByID(STRING workunitID,
+                              STRING espURL = '',
+                              STRING username = '',
+                              STRING userPW = '',
+                              UNSIGNED2 timeoutInSeconds = 0) := FUNCTION
+        myESPURL := CreateESPURL(espURL);
+        auth := CreateAuthHeaderValue(username, userPW);
+
+        WUIDListLayout := RECORD
+            STRING  item;
+        END;
+
+        QueryResultsLayout := RECORD
+            STRING  rWUID       {XPATH('Wuid')};
+            STRING  rAction     {XPATH('Action')};
+            BOOLEAN rResult     {XPATH('Result')};
+        END;
+
+        queryResults := SOAPCALL
+            (
+                myESPURL,
+                'WUDelete',
+                {
+                    DATASET(WUIDListLayout) pWuids {XPATH('Wuids')} := DATASET([workunitID], WUIDListLayout);
+                    UNSIGNED4               pBlockTillFinishTimer {XPATH('BlockTillFinishTimer')} := 1; // IF(timeoutInSeconds = 0, 0, 1);
+                },
+                DATASET(QueryResultsLayout),
+                XPATH('WUDeleteResponse/ActionResults/WUActionResult'),
+                HTTPHEADER('Authorization', auth),
+                TIMEOUT(60), ONFAIL(SKIP)
+            );
+
+        // If the results are missing then the call succeeded
+        RETURN IF(EXISTS(queryResults), queryResults[1].rResult, TRUE);
+    END;
+
+    /**
      * Record structure used to represent the results of a published
      * workunit.
      */
