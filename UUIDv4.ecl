@@ -30,12 +30,12 @@
  *      NullValueStr()
  *      IsNullValueBin(CONST UUIDBin_t uuid)
  *      IsNullValueStr(CONST UUIDStr_t uuid)
- *      AsString(CONST UUIDBin_t uuid)
- *      AsBinary(CONST UUIDStr_t uuid)
+ *      AsStr(CONST UUIDBin_t uuid)
+ *      AsBin(CONST UUIDStr_t uuid)
  *
  * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
-EXPORT UUID := MODULE
+EXPORT UUIDv4 := MODULE
 
     /**
      * Exported Data Types
@@ -60,6 +60,56 @@ EXPORT UUID := MODULE
 
         uuid_generate(newValue);
         memcpy(__result, newValue, sizeof(uuid_t));
+    ENDEMBED;
+
+    /**
+     * Convert a binary UUID value to its human-readable string version.
+     *
+     * @param   uuid        The binary UUID value to convert.
+     *
+     * @return  A new UUIDStr_t value.
+     *
+     * @see     AsBin
+     */
+    EXPORT UUIDStr_t AsStr(CONST UUIDBin_t uuid) := EMBED(c++)
+        #option library uuid
+        #option pure;
+        #include <uuid/uuid.h>
+
+        #body
+
+        char    buffer[37];
+
+        uuid_unparse(static_cast<const unsigned char*>(uuid), buffer);
+        memcpy(__result, buffer, 36);
+    ENDEMBED;
+
+    /**
+     * Convert a string UUID value to its compact binary version.
+     *
+     * @param   uuid        The string UUID value to convert.
+     *
+     * @return  A new UUIDBin_t value.  If the argument is not a valid UUID
+     *          then a (binary null UUID will be returned.
+     *
+     * @see     AsStr
+     */
+    EXPORT UUIDBin_t AsBin(CONST UUIDStr_t uuid) := EMBED(c++)
+        #option library uuid
+        #option pure;
+        #include <uuid/uuid.h>
+
+        #body
+
+        char    buffer[37];
+        uuid_t  parsedValue;
+
+        memcpy(buffer, uuid, 36);
+        buffer[36] = 0;
+        if (uuid_parse(buffer, parsedValue) != 0)
+            uuid_clear(parsedValue);
+
+        memcpy(__result, parsedValue, 16);
     ENDEMBED;
 
     /**
@@ -169,56 +219,6 @@ EXPORT UUID := MODULE
             return false;
 
         return uuid_is_null(parsedValue) == 1;
-    ENDEMBED;
-
-    /**
-     * Convert a binary UUID value to its human-readable string version.
-     *
-     * @param   uuid        The binary UUID value to convert.
-     *
-     * @return  A new UUIDStr_t value.
-     *
-     * @see     AsBinary
-     */
-    EXPORT UUIDStr_t AsString(CONST UUIDBin_t uuid) := EMBED(c++)
-        #option library uuid
-        #option pure;
-        #include <uuid/uuid.h>
-
-        #body
-
-        char    buffer[37];
-
-        uuid_unparse(static_cast<const unsigned char*>(uuid), buffer);
-        memcpy(__result, buffer, 36);
-    ENDEMBED;
-
-    /**
-     * Convert a string UUID value to its compact binary version.
-     *
-     * @param   uuid        The string UUID value to convert.
-     *
-     * @return  A new UUIDBin_t value.  If the argument is not a valid UUID
-     *          then a (binary null UUID will be returned.
-     *
-     * @see     AsString
-     */
-    EXPORT UUIDBin_t AsBinary(CONST UUIDStr_t uuid) := EMBED(c++)
-        #option library uuid
-        #option pure;
-        #include <uuid/uuid.h>
-
-        #body
-
-        char    buffer[37];
-        uuid_t  parsedValue;
-
-        memcpy(buffer, uuid, 36);
-        buffer[36] = 0;
-        if (uuid_parse(buffer, parsedValue) != 0)
-            uuid_clear(parsedValue);
-
-        memcpy(__result, parsedValue, 16);
     ENDEMBED;
 
 END;
