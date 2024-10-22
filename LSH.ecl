@@ -174,7 +174,7 @@ EXPORT LSH := MODULE
                         return byteCount;
                     }
 
-                    virtual const void* nextRow()
+                    virtual const void* nextRow() override
                     {
                         if (isStopped)
                         {
@@ -219,7 +219,8 @@ EXPORT LSH := MODULE
                         isStopped = true;
                         return nullptr;
                     }
-                    virtual void stop()
+
+                    virtual void stop() override
                     {
                         isStopped = true;
                     }
