@@ -537,6 +537,7 @@ EXPORT LSH := MODULE
             EXPORT SIGNATURES_FILENAME := fsPrefix + '::signatures';
             EXPORT HASH_BANDS_FILENAME := fsPrefix + '::hash_bands';
             EXPORT CONFIG_FILENAME := fsPrefix + '::config';
+            EXPORT PERSIST_SUFFIX := fsPrefix + '::cache';
 
             EXPORT vocabDS := DATASET(VOCABULARY_FILENAME, VocabLayout, FLAT);
             EXPORT hashFunctionsDS := DATASET(HASH_FUNCTIONS_FILENAME, HashFunctionLayout, FLAT);
@@ -572,7 +573,7 @@ EXPORT LSH := MODULE
                 );
 
             vocab0 := SORT(rawGrams, ngram, SKEW(0.5));
-            vocab1 := DEDUP(vocab0, ngram);
+            vocab1 := DEDUP(vocab0, ngram) : PERSIST(fs.PERSIST_SUFFIX + '::vocab1', SINGLE, EXPIRE(1));
             vocab := PROJECT
                 (
                     vocab1,
