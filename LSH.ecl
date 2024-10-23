@@ -360,7 +360,7 @@ EXPORT LSH := MODULE
             // Convert entity names into grams, keeping the ID associated with each
             entityGrams := NORMALIZE
                 (
-                    entities,
+                    DISTRIBUTE(entities, SKEW(0.05)),
                     MakeNGrams(LEFT.s, ngramLength),
                     TRANSFORM
                         (
