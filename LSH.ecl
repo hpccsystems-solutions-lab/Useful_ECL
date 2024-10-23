@@ -421,7 +421,8 @@ EXPORT LSH := MODULE
                             },
                             SELF.id := LEFT.id,
                             SELF.pos := RIGHT.pos
-                        )
+                        ),
+                    SMART, SKEW(0.5)
                 );
 
             // Construct the hash digits we need for minhash computation
