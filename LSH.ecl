@@ -410,8 +410,8 @@ EXPORT LSH := MODULE
 
             oneHotForBuilding := JOIN
                 (
-                    vocabulary,
                     entityGrams,
+                    vocabulary,
                     LEFT.ngram = RIGHT.ngram,
                     TRANSFORM
                         (
@@ -419,8 +419,8 @@ EXPORT LSH := MODULE
                                 EntityID_t  id,
                                 UNSIGNED8   pos
                             },
-                            SELF.id := RIGHT.id,
-                            SELF.pos := LEFT.pos
+                            SELF.id := LEFT.id,
+                            SELF.pos := RIGHT.pos
                         )
                 );
 
