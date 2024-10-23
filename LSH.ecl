@@ -571,10 +571,11 @@ EXPORT LSH := MODULE
                         )
                 );
 
-            vocab0 := DEDUP(SORT(rawGrams, ngram), ngram);
+            vocab0 := SORT(rawGrams, ngram, SKEW(0.5));
+            vocab1 := DEDUP(vocab0, ngram);
             vocab := PROJECT
                 (
-                    vocab0,
+                    vocab1,
                     TRANSFORM
                         (
                             VocabLayout,
