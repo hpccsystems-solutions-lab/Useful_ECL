@@ -360,7 +360,7 @@ EXPORT LSH := MODULE
             // Convert entity names into grams, keeping the ID associated with each
             entityGrams := NORMALIZE
                 (
-                    DISTRIBUTE(entities, SKEW(0.05)),
+                    entities,
                     MakeNGrams(LEFT.s, ngramLength),
                     TRANSFORM
                         (
@@ -559,10 +559,13 @@ EXPORT LSH := MODULE
 
             fs := Util.FS(fileScope);
 
+            // Distribute the corpus for efficiency
+            distEntities := DISTRIBUTE(entities, SKEW(0.05));
+
             // Create vocabulary
             rawGrams := NORMALIZE
                 (
-                    DISTRIBUTE(entities, SKEW(0.05)),
+                    distEntities,
                     Util.MakeNGrams(LEFT.s, ngramLength),
                     TRANSFORM
                         (
@@ -591,7 +594,7 @@ EXPORT LSH := MODULE
             createHashFunctionsFileAction := OUTPUT(hashFunctions, {hashFunctions}, fs.HASH_FUNCTIONS_FILENAME, COMPRESSED, OVERWRITE);
 
             // Create dense signatures
-            corpusSigs := Util.CreateDenseSig(entities, vocab, hashFunctions, forSearching := FALSE);
+            corpusSigs := Util.CreateDenseSig(distEntities, vocab, hashFunctions, forSearching := FALSE);
             createSignaturesFileAction := BUILD(corpusSigs, {id}, {corpusSigs}, fs.SIGNATURES_FILENAME, OVERWRITE);
 
             // Break up signatures into hash bands
