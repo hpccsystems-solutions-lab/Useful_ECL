@@ -439,7 +439,8 @@ EXPORT LSH := MODULE
                             },
                             SELF.id := LEFT.id,
                             SELF := RIGHT
-                        )
+                        ),
+                    SMART
                 );
 
             hashDigits := IF(forSearching, hashDigitsForSearching, hashDigitsForBuilding);
