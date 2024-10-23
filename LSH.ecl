@@ -561,7 +561,7 @@ EXPORT LSH := MODULE
             // Create vocabulary
             rawGrams := NORMALIZE
                 (
-                    entities,
+                    DISTRIBUTE(entities, SKEW(0.05)),
                     Util.MakeNGrams(LEFT.s, ngramLength),
                     TRANSFORM
                         (
