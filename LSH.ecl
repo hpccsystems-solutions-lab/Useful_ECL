@@ -78,7 +78,7 @@ EXPORT LSH := MODULE
 
     EXPORT VocabLayout := RECORD
         UNSIGNED8           pos;
-        EntityNGramLayout;
+        NGramLayout;
     END;
 
     EXPORT HashFunctionLayout := RECORD
@@ -112,7 +112,25 @@ EXPORT LSH := MODULE
 
     //====================================================================
 
-    SHARED Util := MODULE
+    SHARED Util(STRING fileScope) := MODULE
+
+        EXPORT FS := MODULE
+            SHARED fsPrefix := Std.Str.RemoveSuffix(fileScope, '::');
+            EXPORT VOCABULARY_FILENAME := fsPrefix + '::vocabulary';
+            EXPORT HASH_FUNCTIONS_FILENAME := fsPrefix + '::hashes';
+            EXPORT SIGNATURES_FILENAME := fsPrefix + '::signatures';
+            EXPORT HASH_BANDS_FILENAME := fsPrefix + '::hash_bands';
+            EXPORT CONFIG_FILENAME := fsPrefix + '::config';
+            EXPORT PERSIST_SUFFIX := fsPrefix + '::cache';
+
+            EXPORT vocabDS := DATASET(VOCABULARY_FILENAME, VocabLayout, FLAT);
+            EXPORT hashFunctionsDS := DATASET(HASH_FUNCTIONS_FILENAME, HashFunctionLayout, FLAT);
+            EXPORT corpusSigsDS := INDEX({DenseSigLayout.id}, {DenseSigLayout}, SIGNATURES_FILENAME);
+            EXPORT corpusHashBandsDS := INDEX({HashBandLayout.bandHash}, {HashBandLayout}, HASH_BANDS_FILENAME);
+            EXPORT configDS := DATASET(CONFIG_FILENAME, ConfigLayout, FLAT);
+        END;
+
+        //--------------------------------------------------------------------
 
         EXPORT STREAMED DATASET(NGramLayout) MakeNGrams(CONST UTF8 s, UNSIGNED1 ngram_length = DEFAULT_NGRAM_LENGTH) := EMBED(C++)
             #option pure
@@ -443,15 +461,32 @@ EXPORT LSH := MODULE
                     SMART, SKEW(0.5)
                 );
 
-            hashDigits := IF(forSearching, hashDigitsForSearching, hashDigitsForBuilding);
+            hashDigits := IF(forSearching, hashDigitsForSearching, hashDigitsForBuilding) : PERSIST(FS.PERSIST_SUFFIX + '::dense_sig_hash_digits', SINGLE, EXPIRE(1));
 
             // Filter out all but the minhash digits
-            hashDigitsGrouped := GROUP(SORT(hashDigits, id, hash_set, pos), id, hash_set);
-            hashDigitMin := TOPN(hashDigitsGrouped, 1, id, hash_set);
-            // Constract a SET of hash digits, which becomes our dense hash code
-            hashDigit := PROJECT
+            distHashDigits := DISTRIBUTE(hashDigits, HASH64(id));
+            /*
+            idHashSet := TABLE(distHashDigits, {id, hash_set}, id, hash_set, LOCAL);
+            distHashDigitMin0 := DENORMALIZE
                 (
-                    UNGROUP(hashDigitMin),
+                    idHashSet,
+                    distHashDigits,
+                    LEFT.id = RIGHT.id AND LEFT.hash_set = RIGHT.hash_set,
+                    GROUP,
+                    TRANSFORM
+                        (
+                            RECORDOF(RIGHT),
+                            SELF := TOPN(ROWS(RIGHT), 1, pos)[1]
+                        ),
+                    LOCAL
+                );
+            */
+            distHashDigitMin0 := GROUP(SORT(distHashDigits, id, hash_set, LOCAL), id, hash_set, LOCAL);
+            distHashDigitMin1 := TOPN(distHashDigitMin0, 1, pos);
+            distHashDigitMin2 := UNGROUP(distHashDigitMin1);
+            hashDigitMin := PROJECT
+                (
+                    distHashDigitMin2,
                     TRANSFORM
                         (
                             DenseSigLayout,
@@ -461,14 +496,15 @@ EXPORT LSH := MODULE
                 );
             denseSigs := ROLLUP
                 (
-                    hashDigit,
+                    hashDigitMin,
                     TRANSFORM
                         (
                             RECORDOF(LEFT),
                             SELF.sig := LEFT.sig + RIGHT.sig,
                             SELF := LEFT
                         ),
-                    id
+                    id,
+                    LOCAL
                 );
 
             RETURN denseSigs;
@@ -530,36 +566,19 @@ EXPORT LSH := MODULE
             return static_cast<double>(intersectionSet.size()) / static_cast<double>(unionSet.size());
         ENDEMBED;
 
-        //--------------------------------------------------------------------
-
-        EXPORT FS(STRING fileScope) := MODULE
-            SHARED fsPrefix := Std.Str.RemoveSuffix(fileScope, '::');
-            EXPORT VOCABULARY_FILENAME := fsPrefix + '::vocabulary';
-            EXPORT HASH_FUNCTIONS_FILENAME := fsPrefix + '::hashes';
-            EXPORT SIGNATURES_FILENAME := fsPrefix + '::signatures';
-            EXPORT HASH_BANDS_FILENAME := fsPrefix + '::hash_bands';
-            EXPORT CONFIG_FILENAME := fsPrefix + '::config';
-            EXPORT PERSIST_SUFFIX := fsPrefix + '::cache';
-
-            EXPORT vocabDS := DATASET(VOCABULARY_FILENAME, VocabLayout, FLAT);
-            EXPORT hashFunctionsDS := DATASET(HASH_FUNCTIONS_FILENAME, HashFunctionLayout, FLAT);
-            EXPORT corpusSigsDS := INDEX({DenseSigLayout.id}, {DenseSigLayout}, SIGNATURES_FILENAME);
-            EXPORT corpusHashBandsDS := INDEX({HashBandLayout.bandHash}, {HashBandLayout}, HASH_BANDS_FILENAME);
-            EXPORT configDS := DATASET(CONFIG_FILENAME, ConfigLayout, FLAT);
-        END;
-
     END; // Module Util
 
     //====================================================================
 
     EXPORT Build(STRING fileScope) := MODULE
 
+        SHARED UtilMod := Util(fileScope);
+        SHARED FSMod := UtilMod.FS;
+
         EXPORT CreateFiles(DATASET(EntityLayout) entities,
                            UNSIGNED2 denseSignatureSize,
                            UNSIGNED2 hashBandSize,
                            UNSIGNED1 ngramLength = DEFAULT_NGRAM_LENGTH) := FUNCTION
-
-            fs := Util.FS(fileScope);
 
             // Distribute the corpus for efficiency
             distEntities := DISTRIBUTE(entities, SKEW(0.05));
@@ -568,20 +587,18 @@ EXPORT LSH := MODULE
             rawGrams := NORMALIZE
                 (
                     distEntities,
-                    Util.MakeNGrams(LEFT.s, ngramLength),
+                    UtilMod.MakeNGrams(LEFT.s, ngramLength),
                     TRANSFORM
                         (
-                            EntityNGramLayout,
-                            SELF := RIGHT,
-                            SELF := LEFT
+                            NGramLayout,
+                            SELF := RIGHT
                         )
                 );
 
-            vocab0 := SORT(rawGrams, ngram, SKEW(0.5));
-            vocab1 := DEDUP(vocab0, ngram) : PERSIST(fs.PERSIST_SUFFIX + '::vocab1', SINGLE, EXPIRE(1));
+            vocab0 := TABLE(rawGrams, {ngram}, ngram, MERGE);
             vocab := PROJECT
                 (
-                    vocab1,
+                    vocab0,
                     TRANSFORM
                         (
                             VocabLayout,
@@ -589,19 +606,19 @@ EXPORT LSH := MODULE
                             SELF := LEFT
                         )
                 );
-            createVocabFileAction := OUTPUT(vocab, {vocab}, fs.VOCABULARY_FILENAME, COMPRESSED, OVERWRITE);
+            createVocabFileAction := OUTPUT(vocab, {vocab}, FSMod.VOCABULARY_FILENAME, COMPRESSED, OVERWRITE);
 
             // Create hash functions
-            hashFunctions := Util.CreateHashFunctions(denseSignatureSize, COUNT(vocab));
-            createHashFunctionsFileAction := OUTPUT(hashFunctions, {hashFunctions}, fs.HASH_FUNCTIONS_FILENAME, COMPRESSED, OVERWRITE);
+            hashFunctions := UtilMod.CreateHashFunctions(denseSignatureSize, COUNT(vocab));
+            createHashFunctionsFileAction := OUTPUT(hashFunctions, {hashFunctions}, FSMod.HASH_FUNCTIONS_FILENAME, COMPRESSED, OVERWRITE);
 
             // Create dense signatures
-            corpusSigs := Util.CreateDenseSig(distEntities, vocab, hashFunctions, forSearching := FALSE);
-            createSignaturesFileAction := BUILD(corpusSigs, {id}, {corpusSigs}, fs.SIGNATURES_FILENAME, OVERWRITE);
+            corpusSigs := UtilMod.CreateDenseSig(distEntities, vocab, hashFunctions, forSearching := FALSE);
+            createSignaturesFileAction := BUILD(corpusSigs, {id}, {corpusSigs}, FSMod.SIGNATURES_FILENAME, OVERWRITE);
 
             // Break up signatures into hash bands
-            corpusHashBands := Util.CreateHashBands(corpusSigs, hashBandSize);
-            createHashBandsFileAction := BUILD(corpusHashBands, {bandHash}, {corpusHashBands}, fs.HASH_BANDS_FILENAME, OVERWRITE);
+            corpusHashBands := UtilMod.CreateHashBands(corpusSigs, hashBandSize);
+            createHashBandsFileAction := BUILD(corpusHashBands, {bandHash}, {corpusHashBands}, FSMod.HASH_BANDS_FILENAME, OVERWRITE);
 
             // Create a single-record config file that records some of these parameters
             config := DATASET
@@ -615,7 +632,7 @@ EXPORT LSH := MODULE
                     ],
                     ConfigLayout
                 );
-            createConfigFileAction := OUTPUT(config, {config}, fs.CONFIG_FILENAME, COMPRESSED, OVERWRITE);
+            createConfigFileAction := OUTPUT(config, {config}, FSMod.CONFIG_FILENAME, COMPRESSED, OVERWRITE);
 
             buildAllAction := PARALLEL
                 (
@@ -640,23 +657,22 @@ EXPORT LSH := MODULE
 
     EXPORT Search(STRING fileScope) := MODULE
 
-        SHARED fs := Util.FS(fileScope);
+        SHARED UtilMod := Util(fileScope);
+        SHARED FSMod := UtilMod.FS;
 
         EXPORT SearchMany(DATASET(EntityLayout) searchEntities, UNSIGNED2 minHashBandMatchCount) := FUNCTION
-            fs := Util.FS(fileScope);
-
             // Files we need
-            vocab := fs.vocabDS;
-            hashFunctions := fs.hashFunctionsDS;
-            corpusSigs := fs.corpusSigsDS;
-            corpusHashBands := fs.corpusHashBandsDS;
-            config := fs.configDS;
+            vocab := FSMod.vocabDS;
+            hashFunctions := FSMod.hashFunctionsDS;
+            corpusSigs := FSMod.corpusSigsDS;
+            corpusHashBands := FSMod.corpusHashBandsDS;
+            config := FSMod.configDS;
 
             // Create dense signatures for the search entities
-            searchSigs := Util.CreateDenseSig(searchEntities, vocab, hashFunctions, forSearching := TRUE);
+            searchSigs := UtilMod.CreateDenseSig(searchEntities, vocab, hashFunctions, forSearching := TRUE);
 
             // Break up signatures into hash bands
-            searchHashBands := Util.CreateHashBands(searchSigs, config[1].hash_band_size);
+            searchHashBands := UtilMod.CreateHashBands(searchSigs, config[1].hash_band_size);
 
             // Find initial matches
             matches := JOIN
@@ -731,7 +747,7 @@ EXPORT LSH := MODULE
                     TRANSFORM
                         (
                             SearchResultLayout,
-                            SELF.similarity := Util.JaccardSimilarity(LEFT.entity_sig, LEFT.search_sig),
+                            SELF.similarity := UtilMod.JaccardSimilarity(LEFT.entity_sig, LEFT.search_sig),
                             SELF := LEFT
                         )
                 );
