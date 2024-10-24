@@ -121,7 +121,6 @@ EXPORT LSH := MODULE
             EXPORT SIGNATURES_FILENAME := fsPrefix + '::signatures';
             EXPORT HASH_BANDS_FILENAME := fsPrefix + '::hash_bands';
             EXPORT CONFIG_FILENAME := fsPrefix + '::config';
-            EXPORT PERSIST_SUFFIX := fsPrefix + '::cache';
 
             EXPORT vocabDS := DATASET(VOCABULARY_FILENAME, VocabLayout, FLAT);
             EXPORT hashFunctionsDS := DATASET(HASH_FUNCTIONS_FILENAME, HashFunctionLayout, FLAT);
@@ -461,13 +460,26 @@ EXPORT LSH := MODULE
                     SMART, SKEW(0.5)
                 );
 
-            hashDigits := IF(forSearching, hashDigitsForSearching, hashDigitsForBuilding) : PERSIST(FS.PERSIST_SUFFIX + '::dense_sig_hash_digits', SINGLE, EXPIRE(1));
+            hashDigits := IF(forSearching, hashDigitsForSearching, hashDigitsForBuilding);
 
             // Filter out all but the minhash digits
             distHashDigits := DISTRIBUTE(hashDigits, HASH64(id));
-            groupedHashDigits := GROUP(SORT(distHashDigits, id, hash_set, LOCAL), id, hash_set, LOCAL);
+            /*
+            groupedHashDigits := GROUP(SORT(distHashDigits, id, hash_set, hash_code, LOCAL), id, hash_set, hash_code, LOCAL);
             minPosHashDigits0 := TOPN(groupedHashDigits, 1, pos);
             minPosHashDigits := UNGROUP(minPosHashDigits0);
+            */
+            minPosHashDigits := TABLE
+                (
+                    distHashDigits(pos > 0),
+                    {
+                        id,
+                        hash_set,
+                        UNSIGNED8 pos := MIN(GROUP, pos)
+                    },
+                    id, hash_set,
+                    LOCAL
+                );
             // Collect hash codes for an ID into a SET
             hashDigitMin := PROJECT
                 (
@@ -476,7 +488,7 @@ EXPORT LSH := MODULE
                         (
                             DenseSigLayout,
                             SELF.id := LEFT.id,
-                            SELF.sig := [LEFT.hash_code]
+                            SELF.sig := [LEFT.pos]
                         )
                 );
             denseSigs := ROLLUP
@@ -673,7 +685,8 @@ EXPORT LSH := MODULE
                             },
                             SELF.search_id := LEFT.id,
                             SELF.entity_id := RIGHT.id
-                        )
+                        ),
+                    LIMIT(0)
                 );
 
             // Count matches and filter out those that don't match enough
@@ -752,7 +765,7 @@ END; // Module LHS
 
 /******* EXAMPLE CODE ***********************************************************************
 
-GRAM_SIZE := 2;
+NGRAM_SIZE := 2;
 SIG_SIZE := 12;
 BAND_SIZE := 2; // Must equally divide into SIG_SIZE
 MIN_BAND_MATCH_COUNT := 1; // Must be between 1 and (SIG_SIZE / BAND_SIZE), inclusive
@@ -782,7 +795,7 @@ corpus0 := DATASET
     );
 corpus := NOFOLD(corpus0);
 
-buildAction := LSH.Build(FILE_SCOPE).CreateFiles(corpus, SIG_SIZE, BAND_SIZE, GRAM_SIZE);
+buildAction := LSH.Build(FILE_SCOPE).CreateFiles(corpus, SIG_SIZE, BAND_SIZE, NGRAM_SIZE);
 
 //--------------------------------
 
