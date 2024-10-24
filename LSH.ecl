@@ -465,28 +465,13 @@ EXPORT LSH := MODULE
 
             // Filter out all but the minhash digits
             distHashDigits := DISTRIBUTE(hashDigits, HASH64(id));
-            /*
-            idHashSet := TABLE(distHashDigits, {id, hash_set}, id, hash_set, LOCAL);
-            distHashDigitMin0 := DENORMALIZE
-                (
-                    idHashSet,
-                    distHashDigits,
-                    LEFT.id = RIGHT.id AND LEFT.hash_set = RIGHT.hash_set,
-                    GROUP,
-                    TRANSFORM
-                        (
-                            RECORDOF(RIGHT),
-                            SELF := TOPN(ROWS(RIGHT), 1, pos)[1]
-                        ),
-                    LOCAL
-                );
-            */
-            distHashDigitMin0 := GROUP(SORT(distHashDigits, id, hash_set, LOCAL), id, hash_set, LOCAL);
-            distHashDigitMin1 := TOPN(distHashDigitMin0, 1, pos);
-            distHashDigitMin2 := UNGROUP(distHashDigitMin1);
+            groupedHashDigits := GROUP(SORT(distHashDigits, id, hash_set, LOCAL), id, hash_set, LOCAL);
+            minPosHashDigits0 := TOPN(groupedHashDigits, 1, pos);
+            minPosHashDigits := UNGROUP(minPosHashDigits0);
+            // Collect hash codes for an ID into a SET
             hashDigitMin := PROJECT
                 (
-                    distHashDigitMin2,
+                    minPosHashDigits,
                     TRANSFORM
                         (
                             DenseSigLayout,
