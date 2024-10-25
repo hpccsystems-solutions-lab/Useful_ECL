@@ -488,7 +488,7 @@ EXPORT LSH := MODULE
                 );
             denseSigs := ROLLUP
                 (
-                    hashDigitMin,
+                    SORT(hashDigitMin, id, LOCAL),
                     TRANSFORM
                         (
                             RECORDOF(LEFT),
