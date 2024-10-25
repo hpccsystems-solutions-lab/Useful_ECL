@@ -464,11 +464,6 @@ EXPORT LSH := MODULE
 
             // Filter out all but the minhash digits
             distHashDigits := DISTRIBUTE(hashDigits, HASH64(id));
-            /*
-            groupedHashDigits := GROUP(SORT(distHashDigits, id, hash_set, hash_code, LOCAL), id, hash_set, hash_code, LOCAL);
-            minPosHashDigits0 := TOPN(groupedHashDigits, 1, pos);
-            minPosHashDigits := UNGROUP(minPosHashDigits0);
-            */
             minPosHashDigits := TABLE
                 (
                     distHashDigits(pos > 0),
