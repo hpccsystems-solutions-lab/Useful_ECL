@@ -125,7 +125,7 @@ EXPORT LSH := MODULE
             EXPORT vocabDS := DATASET(VOCABULARY_FILENAME, VocabLayout, FLAT);
             EXPORT hashFunctionsDS := DATASET(HASH_FUNCTIONS_FILENAME, HashFunctionLayout, FLAT);
             EXPORT corpusSigsDS := INDEX({DenseSigLayout.id}, {DenseSigLayout}, SIGNATURES_FILENAME);
-            EXPORT corpusHashBandsDS := INDEX({HashBandLayout.bandHash}, {HashBandLayout}, HASH_BANDS_FILENAME);
+            EXPORT corpusHashBandsDS := DATASET(HASH_BANDS_FILENAME, HashBandLayout, FLAT);
             EXPORT configDS := DATASET(CONFIG_FILENAME, ConfigLayout, FLAT);
         END;
 
@@ -137,11 +137,11 @@ EXPORT LSH := MODULE
             #include <set>
             #include <string>
 
-            class GramStreamDataset : public RtlCInterface, implements IRowStream
+            class NGramStreamDataset : public RtlCInterface, implements IRowStream
             {
                 public:
 
-                    GramStreamDataset(IEngineRowAllocator* _resultAllocator, size_t _inputStringLength, const char* _inputString, size_t _ngramLength)
+                    NGramStreamDataset(IEngineRowAllocator* _resultAllocator, size_t _inputStringLength, const char* _inputString, size_t _ngramLength)
                         : resultAllocator(_resultAllocator), inputString(_inputString), ngramLength(_ngramLength)
                     {
                         inputStringSize = rtlUtf8Size(_inputStringLength, inputString);
@@ -256,7 +256,7 @@ EXPORT LSH := MODULE
 
             #body
 
-            return new GramStreamDataset(_resultAllocator, lenS, s, ngram_length);
+            return new NGramStreamDataset(_resultAllocator, lenS, s, ngram_length);
         ENDEMBED;
 
         //--------------------------------------------------------------------
@@ -371,11 +371,11 @@ EXPORT LSH := MODULE
 
         //--------------------------------------------------------------------
 
-        EXPORT CreateDenseSig(DATASET(EntityLayout) entities, DATASET(VocabLayout) vocabulary, DATASET(HashFunctionLayout) hashes, BOOLEAN forSearching) := FUNCTION
+        EXPORT CreateDenseSig(DATASET(EntityLayout) entities, DATASET(VocabLayout) vocabulary, DATASET(HashFunctionLayout) hashes) := FUNCTION
             ngramLength := LENGTH(vocabulary[1].ngram);
 
-            // Convert entity names into grams, keeping the ID associated with each
-            entityGrams := NORMALIZE
+            // Convert entity names into ngrams, keeping the ID associated with each
+            entityNGrams := NORMALIZE
                 (
                     entities,
                     MakeNGrams(LEFT.s, ngramLength),
@@ -390,44 +390,9 @@ EXPORT LSH := MODULE
                         )
                 );
 
-            oneHotForSearching := JOIN
+            oneHotMatches := JOIN
                 (
-                    vocabulary,
-                    entityGrams,
-                    LEFT.ngram = RIGHT.ngram,
-                    TRANSFORM
-                        (
-                            {
-                                EntityID_t  id,
-                                UNSIGNED8   pos
-                            },
-                            SELF.id := RIGHT.id,
-                            SELF.pos := LEFT.pos
-                        ),
-                    RIGHT OUTER
-                );
-
-            // Construct the hash digits we need for minhash computation
-            hashDigitsForSearching := JOIN
-                (
-                    oneHotForSearching,
-                    hashes,
-                    LEFT.pos = RIGHT.hash_code,
-                    TRANSFORM
-                        (
-                            {
-                                EntityID_t  id,
-                                RECORDOF(RIGHT)
-                            },
-                            SELF.id := LEFT.id,
-                            SELF := RIGHT
-                        ),
-                    LEFT OUTER
-                );
-
-            oneHotForBuilding := JOIN
-                (
-                    entityGrams,
+                    entityNGrams,
                     vocabulary,
                     LEFT.ngram = RIGHT.ngram,
                     TRANSFORM
@@ -439,13 +404,13 @@ EXPORT LSH := MODULE
                             SELF.id := LEFT.id,
                             SELF.pos := RIGHT.pos
                         ),
-                    SMART, SKEW(0.5)
+                    SMART, LEFT OUTER, SKEW(0.5)
                 );
 
             // Construct the hash digits we need for minhash computation
-            hashDigitsForBuilding := JOIN
+            hashDigits := JOIN
                 (
-                    oneHotForBuilding,
+                    oneHotMatches,
                     hashes,
                     LEFT.pos = RIGHT.hash_code,
                     TRANSFORM
@@ -457,38 +422,44 @@ EXPORT LSH := MODULE
                             SELF.id := LEFT.id,
                             SELF := RIGHT
                         ),
-                    SMART, SKEW(0.5)
+                    SMART, LEFT OUTER, SKEW(0.5)
                 );
 
-            hashDigits := IF(forSearching, hashDigitsForSearching, hashDigitsForBuilding);
-
-            // Filter out all but the minhash digits
-            distHashDigits := DISTRIBUTE(hashDigits, HASH64(id));
+            // Filter out all but the minhash digits; this also significantly reduces the
+            // size of the interim dataset we're working with
             minPosHashDigits := TABLE
                 (
-                    distHashDigits(pos > 0),
+                    hashDigits,
                     {
                         id,
                         hash_set,
                         UNSIGNED8 pos := MIN(GROUP, pos)
                     },
                     id, hash_set,
-                    LOCAL
+                    MERGE
                 );
-            // Collect hash codes for an ID into a SET
+
+            distMinPosHashDigits := DISTRIBUTE(minPosHashDigits, HASH64(id));
+
+            // Convert the positions to a set; they become our dense signature
             hashDigitMin := PROJECT
                 (
-                    minPosHashDigits,
+                    distMinPosHashDigits,
                     TRANSFORM
                         (
-                            DenseSigLayout,
+                            {
+                                DenseSigLayout,
+                                LEFT.hash_set
+                            },
                             SELF.id := LEFT.id,
-                            SELF.sig := [LEFT.pos]
+                            SELF.sig := [LEFT.pos],
+                            SELF := LEFT
                         )
                 );
-            denseSigs := ROLLUP
+
+            denseSigs0 := ROLLUP
                 (
-                    SORT(hashDigitMin, id, LOCAL),
+                    SORT(hashDigitMin, id, hash_set, LOCAL),
                     TRANSFORM
                         (
                             RECORDOF(LEFT),
@@ -497,6 +468,16 @@ EXPORT LSH := MODULE
                         ),
                     id,
                     LOCAL
+                );
+            
+            denseSigs := PROJECT
+                (
+                    denseSigs0,
+                    TRANSFORM
+                        (
+                            DenseSigLayout,
+                            SELF := LEFT
+                        )
                 );
 
             RETURN denseSigs;
@@ -576,7 +557,7 @@ EXPORT LSH := MODULE
             distEntities := DISTRIBUTE(entities, SKEW(0.05));
 
             // Create vocabulary
-            rawGrams := NORMALIZE
+            rawNGrams := NORMALIZE
                 (
                     distEntities,
                     UtilMod.MakeNGrams(LEFT.s, ngramLength),
@@ -587,7 +568,7 @@ EXPORT LSH := MODULE
                         )
                 );
 
-            vocab0 := TABLE(rawGrams, {ngram}, ngram, MERGE);
+            vocab0 := TABLE(rawNGrams, {ngram}, ngram, MERGE);
             vocab := PROJECT
                 (
                     vocab0,
@@ -605,12 +586,12 @@ EXPORT LSH := MODULE
             createHashFunctionsFileAction := OUTPUT(hashFunctions, {hashFunctions}, FSMod.HASH_FUNCTIONS_FILENAME, COMPRESSED, OVERWRITE);
 
             // Create dense signatures
-            corpusSigs := UtilMod.CreateDenseSig(distEntities, vocab, hashFunctions, forSearching := FALSE);
+            corpusSigs := UtilMod.CreateDenseSig(distEntities, vocab, hashFunctions);
             createSignaturesFileAction := BUILD(corpusSigs, {id}, {corpusSigs}, FSMod.SIGNATURES_FILENAME, OVERWRITE);
 
             // Break up signatures into hash bands
             corpusHashBands := UtilMod.CreateHashBands(corpusSigs, hashBandSize);
-            createHashBandsFileAction := BUILD(corpusHashBands, {bandHash}, {corpusHashBands}, FSMod.HASH_BANDS_FILENAME, OVERWRITE);
+            createHashBandsFileAction := OUTPUT(corpusHashBands, {corpusHashBands}, FSMod.HASH_BANDS_FILENAME, COMPRESSED, OVERWRITE);
 
             // Create a single-record config file that records some of these parameters
             config := DATASET
@@ -661,7 +642,7 @@ EXPORT LSH := MODULE
             config := FSMod.configDS;
 
             // Create dense signatures for the search entities
-            searchSigs := UtilMod.CreateDenseSig(searchEntities, vocab, hashFunctions, forSearching := TRUE);
+            searchSigs := UtilMod.CreateDenseSig(searchEntities, vocab, hashFunctions);
 
             // Break up signatures into hash bands
             searchHashBands := UtilMod.CreateHashBands(searchSigs, config[1].hash_band_size);
@@ -669,8 +650,8 @@ EXPORT LSH := MODULE
             // Find initial matches
             matches := JOIN
                 (
-                    searchHashBands,
                     corpusHashBands,
+                    searchHashBands,
                     LEFT.bandHash = RIGHT.bandHash,
                     TRANSFORM
                         (
@@ -678,10 +659,10 @@ EXPORT LSH := MODULE
                                 EntityID_t  search_id,
                                 EntityID_t  entity_id
                             },
-                            SELF.search_id := LEFT.id,
-                            SELF.entity_id := RIGHT.id
+                            SELF.entity_id := LEFT.id,
+                            SELF.search_id := RIGHT.id
                         ),
-                    LIMIT(0)
+                    SMART
                 );
 
             // Count matches and filter out those that don't match enough
@@ -764,6 +745,8 @@ NGRAM_SIZE := 2;
 SIG_SIZE := 12;
 BAND_SIZE := 2; // Must equally divide into SIG_SIZE
 MIN_BAND_MATCH_COUNT := 1; // Must be between 1 and (SIG_SIZE / BAND_SIZE), inclusive
+
+//*** MIN_BAND_MATCH_COUNT is only 1 because our test vocabulary is very small
 
 // Make sure the above constants adhere to our setup
 ASSERT(SIG_SIZE % BAND_SIZE = 0, FAIL);
