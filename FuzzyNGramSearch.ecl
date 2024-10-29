@@ -418,23 +418,53 @@ EXPORT FuzzyNGramSearch := MODULE
             searchSigs := UtilMod.CreateNGramLookups(searchEntities, vocab);
 
             // Find initial matches
-            matches0 := JOIN
+            initialMatches := JOIN
                 (
                     corpusNGrams,
                     searchSigs,
                     LEFT.ngram_pos = RIGHT.ngram_pos,
                     TRANSFORM
                         (
-                            SearchResultLayout,
-                            sim := UtilMod.JaccardSimilarity(LEFT.ngram_pos_set, RIGHT.ngram_pos_set);
+                            {
+                                EntityID_t          search_id,
+                                EntityID_t          entity_id,
+                                SET OF UNSIGNED8    search_ngram_pos_set;
+                                SET OF UNSIGNED8    entity_ngram_pos_set;
+                            },
                             SELF.entity_id := LEFT.id,
                             SELF.search_id := RIGHT.id,
-                            SELF.similarity := IF(sim >= minSimilarity, sim, SKIP)
+                            SELF.entity_ngram_pos_set := LEFT.ngram_pos_set,
+                            SELF.search_ngram_pos_set := RIGHT.ngram_pos_set
                         ),
                     LOOKUP
                 );
 
-            matches := TABLE(matches0, {search_id, entity_id, similarity}, search_id, entity_id, similarity, MERGE);
+            // Dedup so as to avoid running similarity computation on identical pairs
+            dedupedMatches := TABLE
+                (
+                    initialMatches,
+                    {
+                        search_id,
+                        entity_id,
+                        entity_ngram_pos_set,
+                        search_ngram_pos_set
+                    },
+                    search_id, entity_id, entity_ngram_pos_set, search_ngram_pos_set,
+                    MERGE
+                );
+
+            // Filter out dissimilar matches
+            matches := PROJECT
+                (
+                    dedupedMatches,
+                    TRANSFORM
+                        (
+                            SearchResultLayout,
+                            sim := UtilMod.JaccardSimilarity(LEFT.entity_ngram_pos_set, LEFT.search_ngram_pos_set);
+                            SELF.similarity := IF(sim >= minSimilarity, sim, SKIP),
+                            SELF := LEFT
+                        )
+                );
 
             RETURN matches;
         END;
@@ -454,7 +484,7 @@ END; // Module FuzzyNGramSearch
 IMPORT FuzzyNGramSearch;
 
 NGRAM_SIZE := 2;
-MIN_SIMILARITY := 0.55;
+MIN_SIMILARITY := 0.10; // Artificially low to see results
 
 // Make sure the above constants adhere to our setup
 ASSERT(NGRAM_SIZE > 1, FAIL);
