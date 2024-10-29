@@ -34,6 +34,7 @@ own ECL bundle.  Please see
 * [ExportZipArchive.ecl](ExportZipArchive.ecl)
 * [Factorial.ecl](Factorial.ecl)
 * [FuzzyStringSearch.ecl](FuzzyStringSearch.ecl)
+* [FuzzyNGramSearch.ecl](FuzzyNGramSearch.ecl)
 * [Geo.ecl](Geo.ecl)
 * [GroupedNumericStats.ecl](GroupedNumericStats.ecl)
 * [IsUTF8.ecl](IsUTF8.ecl)
