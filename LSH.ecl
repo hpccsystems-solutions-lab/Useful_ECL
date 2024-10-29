@@ -84,7 +84,7 @@ EXPORT LSH := MODULE
     EXPORT HashFunctionLayout := RECORD
         UNSIGNED8           hash_set;
         UNSIGNED8           pos;
-        UNSIGNED8           hash_code;
+        UNSIGNED8           hash_value;
     END;
 
     EXPORT DenseSigLayout := RECORD
@@ -320,7 +320,7 @@ EXPORT LSH := MODULE
 
                                         nums[0] = setCounter + 1;   // hash_set
                                         nums[1] = idx + 1;          // pos
-                                        nums[2] = pos[idx];         // hash_code
+                                        nums[2] = pos[idx];         // hash_value
                                         ++idx;
 
                                         return rowBuilder.finalizeRowClear(totalRowSize);
@@ -390,7 +390,7 @@ EXPORT LSH := MODULE
                         )
                 );
 
-            oneHotMatches := JOIN
+            oneHotMatches0 := JOIN
                 (
                     entityNGrams,
                     vocabulary,
@@ -406,13 +406,14 @@ EXPORT LSH := MODULE
                         ),
                     SMART, LEFT OUTER, SKEW(0.5)
                 );
+            oneHotMatches := WHEN(oneHotMatches0, OUTPUT(oneHotMatches0, NAMED('oneHotMatches0')));
 
             // Construct the hash digits we need for minhash computation
-            hashDigits := JOIN
+            hashDigits0 := JOIN
                 (
                     oneHotMatches,
                     hashes,
-                    LEFT.pos = RIGHT.hash_code,
+                    LEFT.pos = RIGHT.hash_value,
                     TRANSFORM
                         (
                             {
@@ -424,10 +425,11 @@ EXPORT LSH := MODULE
                         ),
                     SMART, LEFT OUTER, SKEW(0.5)
                 );
+            hashDigits := WHEN(hashDigits0, OUTPUT(SORT(hashDigits0, id, hash_set, pos), NAMED('hashDigits0')));
 
             // Filter out all but the minhash digits; this also significantly reduces the
             // size of the interim dataset we're working with
-            minPosHashDigits := TABLE
+            minPosHashDigits0 := TABLE
                 (
                     hashDigits,
                     {
@@ -438,6 +440,7 @@ EXPORT LSH := MODULE
                     id, hash_set,
                     MERGE
                 );
+            minPosHashDigits := WHEN(minPosHashDigits0, OUTPUT(minPosHashDigits0, NAMED('minPosHashDigits0')));
 
             distMinPosHashDigits := DISTRIBUTE(minPosHashDigits, HASH64(id));
 
