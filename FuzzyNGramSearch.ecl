@@ -336,37 +336,57 @@ EXPORT FuzzyNGramSearch := MODULE
 
         //--------------------------------------------------------------------
 
-        // Assumes that SET arguments are sorted
+        // Assumes that SET values are sorted ascending
         EXPORT REAL8 JaccardSimilarity(SET OF UNSIGNED8 set1, SET OF UNSIGNED8 set2) := EMBED(C++)
             #option pure;
 
-            #include <algorithm>
-            #include <vector>
-
             #body
 
-            std::vector<unsigned __int64> firstSet;
-            std::vector<unsigned __int64> secondSet;
-            std::vector<unsigned __int64> intersectionSet;
-            std::vector<unsigned __int64> unionSet;
-
             const unsigned __int64 * numSet1 = static_cast<const unsigned __int64 *>(set1);
-            const unsigned __int64 * numSet2 = static_cast<const unsigned __int64 *>(set2);
-
             unsigned long numElements1 = lenSet1 / sizeof(unsigned __int64);
-            firstSet.reserve(numElements1);
-            for (unsigned long x = 0; x < numElements1; x++)
-                firstSet.push_back(numSet1[x]);
+            unsigned long pos1 = 0;
 
+            const unsigned __int64 * numSet2 = static_cast<const unsigned __int64 *>(set2);
             unsigned long numElements2 = lenSet2 / sizeof(unsigned __int64);
-            secondSet.reserve(numElements2);
-            for (unsigned long x = 0; x < numElements2; x++)
-                secondSet.push_back(numSet2[x]);
+            unsigned long pos2 = 0;
 
-            std::set_intersection(firstSet.begin(), firstSet.end(), secondSet.begin(), secondSet.end(), std::back_inserter(intersectionSet));
-            std::set_union(firstSet.begin(), firstSet.end(), secondSet.begin(), secondSet.end(), std::back_inserter(unionSet));
+            unsigned long intersectionCount = 0;
+            unsigned long unionCount = 0;
 
-            return static_cast<double>(intersectionSet.size()) / static_cast<double>(unionSet.size());
+            while (pos1 < numElements1 || pos2 < numElements2)
+            {
+                if (pos1 < numElements1 && pos2 < numElements2)
+                {
+                    ++unionCount;
+
+                    if (numSet1[pos1] == numSet2[pos2])
+                    {
+                        ++intersectionCount;
+                        ++pos1;
+                        ++pos2;
+                    }
+                    else if (numSet1[pos1] < numSet2[pos2])
+                    {
+                        ++pos1;
+                    }
+                    else
+                    {
+                        ++pos2;
+                    }
+                }
+                else if (pos1 < numElements1)
+                {
+                    unionCount += (numElements1 - pos1);
+                    break;
+                }
+                else
+                {
+                    unionCount += (numElements2 - pos2);
+                    break;
+                }
+            }
+
+            return static_cast<double>(intersectionCount) / static_cast<double>(unionCount);
         ENDEMBED;
 
     END; // Module Util
