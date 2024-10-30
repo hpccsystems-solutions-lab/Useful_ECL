@@ -61,7 +61,7 @@ EXPORT FuzzyNGramSearch := MODULE
     END;
 
     EXPORT NGramLookupLayout := RECORD
-        UNSIGNED8           ngram_pos;
+        UNSIGNED8           lookup_id;
         EntityID_t          id;
         SET OF UNSIGNED8    ngram_pos_set;
     END;
@@ -326,7 +326,7 @@ EXPORT FuzzyNGramSearch := MODULE
                     TRANSFORM
                         (
                             NGramLookupLayout,
-                            SELF.ngram_pos := LEFT.ngram_pos_set[COUNTER],
+                            SELF.lookup_id := LEFT.ngram_pos_set[COUNTER],
                             SELF := LEFT
                         )
                 );
@@ -388,7 +388,7 @@ EXPORT FuzzyNGramSearch := MODULE
 
             // Create dense signatures
             corpusNGrams0 := UtilMod.CreateNGramLookups(distEntities, vocab);
-            corpusNGrams := corpusNGrams0(ngram_pos > 0);
+            corpusNGrams := corpusNGrams0;
             createSignaturesFileAction := OUTPUT(corpusNGrams, {corpusNGrams}, FSMod.NGRAM_LOOKUP_FILENAME, COMPRESSED, OVERWRITE);
 
             buildAllAction := PARALLEL
@@ -422,7 +422,7 @@ EXPORT FuzzyNGramSearch := MODULE
                 (
                     corpusNGrams,
                     searchSigs,
-                    LEFT.ngram_pos = RIGHT.ngram_pos,
+                    LEFT.lookup_id = RIGHT.lookup_id,
                     TRANSFORM
                         (
                             {
