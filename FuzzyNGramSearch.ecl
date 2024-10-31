@@ -39,7 +39,7 @@ EXPORT FuzzyNGramSearch := MODULE
 
     //--------------------------------------------------------------------
 
-    EXPORT EntityID_t := UNSIGNED6;
+    EXPORT EntityID_t := UNSIGNED8;
 
     EXPORT EntityLayout := RECORD
         EntityID_t          id;     // Entity GUID
@@ -88,149 +88,124 @@ EXPORT FuzzyNGramSearch := MODULE
 
         //--------------------------------------------------------------------
 
-        EXPORT STREAMED DATASET(NGramLayout) MakeNGrams(CONST UTF8 s, UNSIGNED1 ngram_length = DEFAULT_NGRAM_LENGTH) := EMBED(C++)
+        EXPORT DATASET(NGramLayout) MakeNGrams(CONST UTF8 s, UNSIGNED1 ngram_length = DEFAULT_NGRAM_LENGTH) := EMBED(C++)
             #option pure
 
             #include <set>
             #include <string>
 
-            class NGramStreamDataset : public RtlCInterface, implements IRowStream
+            inline size_t countTrailingBytes(byte value)
             {
-                public:
+                if (value < 0xc0) return 0;
+                if (value < 0xe0) return 1;
+                if (value < 0xf0) return 2;
+                if (value < 0xf8) return 3;
+                if (value < 0xfc) return 4;
+                return 5;
+            }
 
-                    NGramStreamDataset(IEngineRowAllocator* _resultAllocator, size_t _inputStringLength, const char* _inputString, size_t _ngramLength)
-                        : resultAllocator(_resultAllocator), inputString(_inputString), ngramLength(_ngramLength)
+            inline size_t bytesForChar(byte ch)
+            {
+                size_t trailingByteCount = countTrailingBytes(ch);
+
+                if (trailingByteCount > 4)
+                    return 0;
+
+                return trailingByteCount + 1;
+            }
+
+            size_t byteCountForCharCount(const char* inputString, size_t inputStringSize, size_t currentPos, size_t charsNeeded)
+            {
+                size_t byteCount = 0;
+
+                for (size_t x = 0; x < charsNeeded; x++)
+                {
+                    size_t byteCountToSkip = bytesForChar(inputString[currentPos + byteCount]);
+
+                    if (byteCountToSkip == 0 || currentPos + byteCount + byteCountToSkip > inputStringSize)
                     {
-                        inputStringSize = rtlUtf8Size(_inputStringLength, inputString);
-                        isStopped = (_inputStringLength < ngramLength);
-                        currentPos = 0;
+                        // Error condition
+                        return 0;
                     }
 
-                    RTLIMPLEMENT_IINTERFACE
+                    byteCount += byteCountToSkip;
+                }
 
-                    static inline size_t countTrailingBytes(byte value)
-                    {
-                        if (value < 0xc0) return 0;
-                        if (value < 0xe0) return 1;
-                        if (value < 0xf0) return 2;
-                        if (value < 0xf8) return 3;
-                        if (value < 0xfc) return 4;
-                        return 5;
-                    }
-
-                    static inline size_t bytesForChar(byte ch)
-                    {
-                        size_t trailingByteCount = countTrailingBytes(ch);
-
-                        if (trailingByteCount > 4)
-                            return 0;
-
-                        return trailingByteCount + 1;
-                    }
-
-                    size_t numBytesForNumChars(size_t charsNeeded)
-                    {
-                        size_t byteCount = 0;
-
-                        for (size_t x = 0; x < charsNeeded; x++)
-                        {
-                            size_t byteCountToSkip = bytesForChar(inputString[currentPos + byteCount]);
-
-                            if (byteCountToSkip == 0 || currentPos + byteCount + byteCountToSkip > inputStringSize)
-                            {
-                                // Error condition
-                                return 0;
-                            }
-
-                            byteCount += byteCountToSkip;
-                        }
-
-                        return byteCount;
-                    }
-
-                    virtual const void* nextRow() override
-                    {
-                        if (isStopped)
-                        {
-                            return nullptr;
-                        }
-
-                        while (currentPos < inputStringSize)
-                        {
-                            size_t numBytesToCopy = numBytesForNumChars(ngramLength);
-
-                            if (numBytesToCopy > 0)
-                            {
-                                const bool didInsert = ngramSet.insert(std::string(inputString + currentPos, numBytesToCopy)).second;
-
-                                if (didInsert)
-                                {
-                                    RtlDynamicRowBuilder    rowBuilder(resultAllocator);
-                                    uint32_t                len = numBytesToCopy;
-                                    uint32_t                totalRowSize = sizeof(len) + len;
-                                    byte*                   row = rowBuilder.ensureCapacity(totalRowSize, NULL);
-
-                                    memcpy(row, &len, sizeof(len));
-                                    memcpy(row + sizeof(len), inputString + currentPos, len);
-
-                                    currentPos += numBytesForNumChars(1);
-
-                                    return rowBuilder.finalizeRowClear(totalRowSize);
-                                }
-                                else
-                                {
-                                    // We didn't insert, but we need to advance the current position
-                                    currentPos += numBytesForNumChars(1);
-                                }
-                            }
-                            else
-                            {
-                                isStopped = true;
-                                return nullptr;
-                            }
-                        }
-
-                        isStopped = true;
-                        return nullptr;
-                    }
-
-                    virtual void stop() override
-                    {
-                        isStopped = true;
-                    }
-
-                private:
-
-                    Linked<IEngineRowAllocator> resultAllocator;
-                    bool                        isStopped;
-                    std::string                 outString;
-                    const char *                inputString;
-                    size_t                      inputStringSize;
-                    size_t                      ngramLength;
-                    size_t                      currentPos;
-                    std::set<std::string>       ngramSet;
-            };
+                return byteCount;
+            }
 
             #body
 
-            return new NGramStreamDataset(_resultAllocator, lenS, s, ngram_length);
+            size_t sSize = rtlUtf8Size(lenS, s);
+
+            size_t currentPos = 0;
+            std::set<std::string> ngramSet;
+
+            // Collect unique ngrams
+            while (currentPos < (sSize - ngram_length + 1))
+            {
+                size_t numBytesToCopy = byteCountForCharCount(s, sSize, currentPos, ngram_length);
+
+                ngramSet.insert(std::string(s + currentPos, numBytesToCopy));
+                currentPos += byteCountForCharCount(s, sSize, currentPos, 1);
+            }
+
+            // Compute result buffer size and allocate
+            __lenResult = 0;
+            for (auto& n : ngramSet)
+            {
+                // stringLen + stringData
+                __lenResult += (sizeof(size32_t) + n.size());
+            }
+
+            if (__lenResult > 0)
+            {
+                __result = rtlMalloc(__lenResult);
+
+                byte* outPtr = static_cast<byte*>(__result);
+                size32_t stringLen = ngram_length;
+
+                for (auto& n : ngramSet)
+                {
+                    memcpy_iflen(outPtr, &stringLen, sizeof(stringLen));
+                    outPtr += sizeof(stringLen);
+                    memcpy_iflen(outPtr, n.data(), n.size());
+                    outPtr += n.size();
+                }
+            }
+            else
+            {
+                __result = nullptr;
+            }
         ENDEMBED;
 
         //--------------------------------------------------------------------
 
-        EXPORT CreateVocabulary(DATASET(EntityLayout) entities, UNSIGNED1 ngramLength) := FUNCTION
-            rawNGrams := NORMALIZE
+        SHARED CreateEntityNGrams(DATASET(EntityLayout) entities, UNSIGNED1 ngramLength) := FUNCTION
+            entityNGrams := NORMALIZE
                 (
                     entities,
                     MakeNGrams(LEFT.s, ngramLength),
                     TRANSFORM
                         (
-                            NGramLayout,
-                            SELF := RIGHT
+                            {
+                                EntityID_t  id,
+                                UTF8        ngram
+                            },
+                            SELF.id := LEFT.id,
+                            SELF.ngram := RIGHT.ngram
                         )
                 );
+            
+            RETURN entityNGrams;
+        END;
 
-            // Deduplicate the ngrams
+        //--------------------------------------------------------------------
+
+        EXPORT CreateVocabulary(DATASET(EntityLayout) entities, UNSIGNED1 ngramLength) := FUNCTION
+            rawNGrams := CreateEntityNGrams(entities, ngramLength);
+
+            // Deduplicate only the ngrams
             vocab0 := TABLE(rawNGrams, {ngram}, ngram, MERGE);
 
             vocab := PROJECT
@@ -249,24 +224,9 @@ EXPORT FuzzyNGramSearch := MODULE
 
         //--------------------------------------------------------------------
 
-        EXPORT CreateNGramLookups(DATASET(EntityLayout) entities, DATASET(VocabLayout) vocabulary) := FUNCTION
-            ngramLength := LENGTH(vocabulary[1].ngram);
-
+        EXPORT CreateNGramLookups(DATASET(EntityLayout) entities, DATASET(VocabLayout) vocabulary, UNSIGNED1 ngramLength) := FUNCTION
             // Convert entity names into ngrams, keeping the ID associated with each
-            entityNGrams := NORMALIZE
-                (
-                    entities,
-                    MakeNGrams(LEFT.s, ngramLength),
-                    TRANSFORM
-                        (
-                            {
-                                EntityID_t  id,
-                                UTF8        ngram
-                            },
-                            SELF.id := LEFT.id,
-                            SELF.ngram := RIGHT.ngram
-                        )
-                );
+            entityNGrams := CreateEntityNGrams(entities, ngramLength);
 
             // Convert found ngrams into their positions
             vocabMatches := JOIN
@@ -407,7 +367,7 @@ EXPORT FuzzyNGramSearch := MODULE
             createVocabFileAction := OUTPUT(vocab, {vocab}, FSMod.VOCABULARY_FILENAME, COMPRESSED, OVERWRITE);
 
             // Create dense signatures
-            corpusNGrams0 := UtilMod.CreateNGramLookups(distEntities, vocab);
+            corpusNGrams0 := UtilMod.CreateNGramLookups(distEntities, vocab, ngramLength);
             corpusNGrams := corpusNGrams0;
             createSignaturesFileAction := OUTPUT(corpusNGrams, {corpusNGrams}, FSMod.NGRAM_LOOKUP_FILENAME, COMPRESSED, OVERWRITE);
 
@@ -435,7 +395,7 @@ EXPORT FuzzyNGramSearch := MODULE
             corpusNGrams := FSMod.corpusNGramsDS;
 
             // Create dense signatures for the search entities
-            searchSigs := UtilMod.CreateNGramLookups(searchEntities, vocab);
+            searchSigs := UtilMod.CreateNGramLookups(searchEntities, vocab, LENGTH(vocab[1].ngram));
 
             // Find initial matches
             initialMatches := JOIN
