@@ -49,6 +49,7 @@ own ECL bundle.  Please see
 * [ScalarArgType.ecl](ScalarArgType.ecl)
 * [ScopeContentsAsTempSuperFile.ecl](ScopeContentsAsTempSuperFile.ecl)
 * [Sets.ecl](Sets.ecl)
+* [SHA256.ecl](SHA256.ecl)
 * [Str.ecl](Str.ecl)
 * [UUIDv4.ecl](UUIDv4.ecl)
 * [UUIDv7.ecl](UUIDv7.ecl)
