@@ -141,13 +141,16 @@ EXPORT FuzzyNGramSearch := MODULE
             size_t currentPos = 0;
             std::set<std::string> ngramSet;
 
-            // Collect unique ngrams
-            while (currentPos < (sSize - ngram_length + 1))
+            if (lenS >= ngram_length)
             {
-                size_t numBytesToCopy = byteCountForCharCount(s, sSize, currentPos, ngram_length);
+                // Collect unique ngrams
+                while (currentPos < (sSize - ngram_length + 1))
+                {
+                    size_t numBytesToCopy = byteCountForCharCount(s, sSize, currentPos, ngram_length);
 
-                ngramSet.insert(std::string(s + currentPos, numBytesToCopy));
-                currentPos += byteCountForCharCount(s, sSize, currentPos, 1);
+                    ngramSet.insert(std::string(s + currentPos, numBytesToCopy));
+                    currentPos += byteCountForCharCount(s, sSize, currentPos, 1);
+                }
             }
 
             // Compute result buffer size and allocate
