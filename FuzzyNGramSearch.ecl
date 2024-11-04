@@ -117,21 +117,14 @@ EXPORT FuzzyNGramSearch := MODULE
                 return trailingByteCount + 1;
             }
 
-            size_t byteCountForCharCount(const char* inputString, size_t inputStringSize, size_t currentPos, size_t charsNeeded)
+            size_t byteCountForChar(const char* inputString, size_t inputStringSize, size_t currentPos)
             {
-                size_t byteCount = 0;
+                size_t byteCount = bytesForChar(inputString[currentPos]);
 
-                for (size_t x = 0; x < charsNeeded; x++)
+                if (byteCount == 0 || (currentPos + byteCount > inputStringSize))
                 {
-                    size_t byteCountToSkip = bytesForChar(inputString[currentPos + byteCount]);
-
-                    if (byteCountToSkip == 0 || currentPos + byteCount + byteCountToSkip > inputStringSize)
-                    {
-                        // Error condition
-                        rtlFail(-1, "Invalid UTF-8 encoding");
-                    }
-
-                    byteCount += byteCountToSkip;
+                    // Error condition
+                    rtlFail(-1, "Invalid UTF-8 encoding");
                 }
 
                 return byteCount;
@@ -152,7 +145,7 @@ EXPORT FuzzyNGramSearch := MODULE
                 byteSizes.reserve(lenS);
                 for (size_t x = 0; x < lenS; x++)
                 {
-                    size_t numBytesToCopy = byteCountForCharCount(s, sSize, currentPos, 1);
+                    size_t numBytesToCopy = byteCountForChar(s, sSize, currentPos);
                     byteSizes.push_back(std::make_pair(currentPos, numBytesToCopy));
                     currentPos += numBytesToCopy;
                 }
