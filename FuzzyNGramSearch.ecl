@@ -94,6 +94,8 @@ EXPORT FuzzyNGramSearch := MODULE
 
             #include <set>
             #include <string>
+            #include <utility>
+            #include <vector>
 
             inline size_t countTrailingBytes(byte value)
             {
@@ -126,7 +128,7 @@ EXPORT FuzzyNGramSearch := MODULE
                     if (byteCountToSkip == 0 || currentPos + byteCount + byteCountToSkip > inputStringSize)
                     {
                         // Error condition
-                        return 0;
+                        rtlFail(-1, "Invalid UTF-8 encoding");
                     }
 
                     byteCount += byteCountToSkip;
@@ -137,21 +139,33 @@ EXPORT FuzzyNGramSearch := MODULE
 
             #body
 
-            size_t sSize = rtlUtf8Size(lenS, s);
-
-            size_t currentPos = 0;
             std::set<std::string> ngramSet;
 
             if (lenS >= ngram_length)
             {
-                // Collect unique ngrams
-                while (currentPos < (sSize - ngram_length + 1))
-                {
-                    size_t numBytesToCopy = byteCountForCharCount(s, sSize, currentPos, ngram_length);
+                size_t sSize = rtlUtf8Size(lenS, s);
+                size_t currentPos = 0;
+                std::vector<std::pair<size_t, size_t>> byteSizes;
+                std::string ngramBuffer;
 
-                    if (numBytesToCopy >= ngram_length)
-                        ngramSet.insert(std::string(s + currentPos, numBytesToCopy));
-                    currentPos += byteCountForCharCount(s, sSize, currentPos, 1);
+                // Precompute bytes used for each character
+                byteSizes.reserve(lenS);
+                for (size_t x = 0; x < lenS; x++)
+                {
+                    size_t numBytesToCopy = byteCountForCharCount(s, sSize, currentPos, 1);
+                    byteSizes.push_back(std::make_pair(currentPos, numBytesToCopy));
+                    currentPos += numBytesToCopy;
+                }
+
+                // Collect unique ngrams
+                for (size_t x = 0; x < (lenS - ngram_length + 1); x++)
+                {
+                    size_t numBytesToCopy = 0;
+                    currentPos = byteSizes[x].first;
+                    for (size_t y = 0; y < ngram_length; y++)
+                        numBytesToCopy += byteSizes[x + y].second;
+                    ngramBuffer.assign(s + currentPos, numBytesToCopy);
+                    ngramSet.insert(ngramBuffer);
                 }
             }
 
@@ -365,7 +379,7 @@ EXPORT FuzzyNGramSearch := MODULE
 
         EXPORT CreateFiles(DATASET(EntityLayout) entities, UNSIGNED1 ngramLength = DEFAULT_NGRAM_LENGTH) := FUNCTION
             // Distribute the corpus for efficiency
-            distEntities := DISTRIBUTE(entities, SKEW(0.05));
+            distEntities := DISTRIBUTE(entities, SKEW(0.02));
 
             // Create vocabulary
             vocab := UtilMod.CreateVocabulary(distEntities, ngramLength);
