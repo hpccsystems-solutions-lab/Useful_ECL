@@ -40,6 +40,7 @@ EXPORT FuzzyNGramSearch := MODULE
     //--------------------------------------------------------------------
 
     EXPORT EntityID_t := UNSIGNED8;
+    EXPORT VocabID_t := UNSIGNED2;
 
     EXPORT EntityLayout := RECORD
         EntityID_t          id;     // Entity GUID
@@ -56,14 +57,14 @@ EXPORT FuzzyNGramSearch := MODULE
     END;
 
     EXPORT VocabLayout := RECORD
-        UNSIGNED8           pos;
+        VocabID_t           pos;
         NGramLayout;
     END;
 
     EXPORT NGramLookupLayout := RECORD
-        UNSIGNED8           lookup_id;
+        VocabID_t           lookup_id;
         EntityID_t          id;
-        SET OF UNSIGNED8    ngram_pos_set;
+        SET OF VocabID_t    ngram_pos_set;
     END;
 
     EXPORT SearchResultLayout := RECORD
@@ -148,7 +149,8 @@ EXPORT FuzzyNGramSearch := MODULE
                 {
                     size_t numBytesToCopy = byteCountForCharCount(s, sSize, currentPos, ngram_length);
 
-                    ngramSet.insert(std::string(s + currentPos, numBytesToCopy));
+                    if (numBytesToCopy >= ngram_length)
+                        ngramSet.insert(std::string(s + currentPos, numBytesToCopy));
                     currentPos += byteCountForCharCount(s, sSize, currentPos, 1);
                 }
             }
@@ -241,7 +243,7 @@ EXPORT FuzzyNGramSearch := MODULE
                         (
                             {
                                 EntityID_t  id,
-                                UNSIGNED8   ngram_pos
+                                VocabID_t   ngram_pos
                             },
                             SELF.id := LEFT.id,
                             SELF.ngram_pos := RIGHT.pos
@@ -259,7 +261,7 @@ EXPORT FuzzyNGramSearch := MODULE
                         (
                             {
                                 EntityID_t  id,
-                                SET OF UNSIGNED8 ngram_pos_set,
+                                SET OF VocabID_t ngram_pos_set,
                                 LEFT.ngram_pos
                             },
                             SELF.id := LEFT.id,
@@ -300,17 +302,17 @@ EXPORT FuzzyNGramSearch := MODULE
         //--------------------------------------------------------------------
 
         // Assumes that SET values are sorted ascending
-        EXPORT REAL8 JaccardSimilarity(SET OF UNSIGNED8 set1, SET OF UNSIGNED8 set2) := EMBED(C++)
+        EXPORT REAL8 JaccardSimilarity(SET OF VocabID_t set1, SET OF VocabID_t set2) := EMBED(C++)
             #option pure;
 
             #body
 
-            const unsigned __int64 * numSet1 = static_cast<const unsigned __int64 *>(set1);
-            unsigned long numElements1 = lenSet1 / sizeof(unsigned __int64);
+            const unsigned uint16_t * numSet1 = static_cast<const unsigned uint16_t *>(set1);
+            unsigned long numElements1 = lenSet1 / sizeof(unsigned uint16_t);
             unsigned long pos1 = 0;
 
-            const unsigned __int64 * numSet2 = static_cast<const unsigned __int64 *>(set2);
-            unsigned long numElements2 = lenSet2 / sizeof(unsigned __int64);
+            const unsigned uint16_t * numSet2 = static_cast<const unsigned uint16_t *>(set2);
+            unsigned long numElements2 = lenSet2 / sizeof(unsigned uint16_t);
             unsigned long pos2 = 0;
 
             unsigned long intersectionCount = 0;
@@ -411,8 +413,8 @@ EXPORT FuzzyNGramSearch := MODULE
                             {
                                 EntityID_t          search_id,
                                 EntityID_t          entity_id,
-                                SET OF UNSIGNED8    search_ngram_pos_set;
-                                SET OF UNSIGNED8    entity_ngram_pos_set;
+                                SET OF VocabID_t    search_ngram_pos_set;
+                                SET OF VocabID_t    entity_ngram_pos_set;
                             },
                             SELF.entity_id := LEFT.id,
                             SELF.search_id := RIGHT.id,
