@@ -136,7 +136,7 @@ EXPORT FuzzyNGramSearch := MODULE
 
             std::set<std::string> ngramSet;
 
-            if (lenS >= ngram_length)
+            if (lenS >= ngram_length && ngram_length > 0)
             {
                 size_t sSize = rtlUtf8Size(lenS, s);
                 size_t currentPos = 0;
@@ -209,7 +209,7 @@ EXPORT FuzzyNGramSearch := MODULE
                             SELF.id := LEFT.id,
                             SELF.ngram := RIGHT.ngram
                         )
-                ) : PERSIST(FS.PERSIST_SCOPE + '::entityNGrams', SINGLE, EXPIRE(DEFAULT_PERSIST_EXPIRE));
+                ) : PERSIST(FS.PERSIST_SCOPE + '::entity_ngrams', SINGLE, EXPIRE(DEFAULT_PERSIST_EXPIRE));
             
             RETURN entityNGrams;
         END;
