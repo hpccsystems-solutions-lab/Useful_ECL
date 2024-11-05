@@ -316,12 +316,12 @@ EXPORT FuzzyNGramSearch := MODULE
 
             #body
 
-            const unsigned uint16_t * numSet1 = static_cast<const unsigned uint16_t *>(set1);
-            unsigned long numElements1 = lenSet1 / sizeof(unsigned uint16_t);
+            const uint16_t * numSet1 = static_cast<const uint16_t *>(set1);
+            unsigned long numElements1 = lenSet1 / sizeof(uint16_t);
             unsigned long pos1 = 0;
 
-            const unsigned uint16_t * numSet2 = static_cast<const unsigned uint16_t *>(set2);
-            unsigned long numElements2 = lenSet2 / sizeof(unsigned uint16_t);
+            const uint16_t * numSet2 = static_cast<const uint16_t *>(set2);
+            unsigned long numElements2 = lenSet2 / sizeof(uint16_t);
             unsigned long pos2 = 0;
 
             unsigned long intersectionCount = 0;
