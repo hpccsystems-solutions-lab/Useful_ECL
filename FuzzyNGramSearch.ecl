@@ -36,7 +36,6 @@ EXPORT FuzzyNGramSearch := MODULE
     //--------------------------------------------------------------------
 
     SHARED DEFAULT_NGRAM_LENGTH := 2;
-    SHARED DEFAULT_PERSIST_EXPIRE := 2;
 
     //--------------------------------------------------------------------
 
@@ -83,7 +82,6 @@ EXPORT FuzzyNGramSearch := MODULE
 
             EXPORT VOCABULARY_FILENAME := fsPrefix + '::vocabulary';
             EXPORT NGRAM_LOOKUP_FILENAME := fsPrefix + '::ngram_lookup';
-            EXPORT PERSIST_SCOPE := fsPrefix + '::cache';
 
             EXPORT vocabDS := DATASET(VOCABULARY_FILENAME, VocabLayout, FLAT);
             EXPORT corpusNGramsDS := DATASET(NGRAM_LOOKUP_FILENAME, NGramLookupLayout, FLAT);
@@ -209,7 +207,7 @@ EXPORT FuzzyNGramSearch := MODULE
                             SELF.id := LEFT.id,
                             SELF.ngram := RIGHT.ngram
                         )
-                ) : PERSIST(FS.PERSIST_SCOPE + '::entity_ngrams', SINGLE, EXPIRE(DEFAULT_PERSIST_EXPIRE));
+                );
             
             RETURN entityNGrams;
         END;
