@@ -46,6 +46,7 @@
  * A complete example of both build and search is in a comment block at the end of this file.
  *
  * Tutorial on LSH: https://www.pinecone.io/learn/series/faiss/locality-sensitive-hashing/
+ * Another tutorial: https://medium.com/@hbrylkowski/locality-sensitive-hashing-explained-304eb39291e4
  *
  * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
@@ -60,41 +61,26 @@ EXPORT LSH := MODULE
 
     //--------------------------------------------------------------------
 
-    EXPORT EntityID_t := UNSIGNED6;
+    EXPORT EntityID_t := UNSIGNED8;
+    EXPORT Hash_t := UNSIGNED8;
 
     EXPORT EntityLayout := RECORD
         EntityID_t          id;     // Entity GUID
         UTF8                s;      // Data associated with entity
     END;
 
-    EXPORT NGramLayout := RECORD
-        UTF8                ngram;
-    END;
-
-    EXPORT EntityNGramLayout := RECORD
-        EntityID_t          id;
-        NGramLayout;
-    END;
-
-    EXPORT VocabLayout := RECORD
-        UNSIGNED8           pos;
-        NGramLayout;
-    END;
-
     EXPORT HashFunctionLayout := RECORD
-        UNSIGNED8           hash_set;
-        UNSIGNED8           pos;
-        UNSIGNED8           hash_value;
+        SET OF Hash_t       hash_value_set;
     END;
 
     EXPORT DenseSigLayout := RECORD
         EntityID_t          id;
-        SET OF UNSIGNED8    sig;
+        SET OF Hash_t       sig;
     END;
 
-    EXPORT HashBandLayout := RECORD
+    EXPORT LookupLayout := RECORD
+        Hash_t              lookup_hash;
         EntityID_t          id;
-        UNSIGNED8           bandHash;
     END;
 
     EXPORT SearchResultLayout := RECORD
@@ -106,8 +92,8 @@ EXPORT LSH := MODULE
 
     EXPORT ConfigLayout := RECORD
         UNSIGNED1           ngram_length;
-        UNSIGNED1           signature_size;
         UNSIGNED1           hash_band_size;
+        SET OF Hash_t       hashes;
     END;
 
     //====================================================================
@@ -116,375 +102,140 @@ EXPORT LSH := MODULE
 
         EXPORT FS := MODULE
             SHARED fsPrefix := Std.Str.RemoveSuffix(fileScope, '::');
-            EXPORT VOCABULARY_FILENAME := fsPrefix + '::vocabulary';
-            EXPORT HASH_FUNCTIONS_FILENAME := fsPrefix + '::hashes';
+            EXPORT LOOKUP_FILENAME := fsPrefix + '::lookup';
             EXPORT SIGNATURES_FILENAME := fsPrefix + '::signatures';
-            EXPORT HASH_BANDS_FILENAME := fsPrefix + '::hash_bands';
             EXPORT CONFIG_FILENAME := fsPrefix + '::config';
 
-            EXPORT vocabDS := DATASET(VOCABULARY_FILENAME, VocabLayout, FLAT);
-            EXPORT hashFunctionsDS := DATASET(HASH_FUNCTIONS_FILENAME, HashFunctionLayout, FLAT);
-            EXPORT corpusSigsDS := INDEX({DenseSigLayout.id}, {DenseSigLayout}, SIGNATURES_FILENAME);
-            EXPORT corpusHashBandsDS := DATASET(HASH_BANDS_FILENAME, HashBandLayout, FLAT);
+            EXPORT lookupDS := DATASET(LOOKUP_FILENAME, LookupLayout, FLAT);
+            EXPORT signaturesDS := INDEX({DenseSigLayout.id}, {DenseSigLayout}, SIGNATURES_FILENAME);
             EXPORT configDS := DATASET(CONFIG_FILENAME, ConfigLayout, FLAT);
         END;
 
         //--------------------------------------------------------------------
 
-        EXPORT STREAMED DATASET(NGramLayout) MakeNGrams(CONST UTF8 s, UNSIGNED1 ngram_length = DEFAULT_NGRAM_LENGTH) := EMBED(C++)
+        EXPORT CreateHashFunctions(UNSIGNED2 hashCount) := FUNCTION
+            hashes := DATASET
+                (
+                    hashCount,
+                    TRANSFORM
+                        (
+                            {
+                                Hash_t h
+                            },
+                            SELF.h := (RANDOM() << 32) | RANDOM()
+                        )
+                );
+
+            RETURN SET(hashes, h);
+        END;
+
+        //--------------------------------------------------------------------
+
+        EXPORT SET OF Hash_t MakeDenseSignature(CONST UTF8 s, UNSIGNED1 ngram_length, SET OF Hash_t hashes) := EMBED(C++)
             #option pure
 
-            #include <set>
+            #include <algorithm>
             #include <string>
+            #include <utility>
+            #include <vector>
 
-            class NGramStreamDataset : public RtlCInterface, implements IRowStream
+            typedef unsigned __int64 HashType;
+
+            inline size_t countTrailingBytes(byte value)
             {
-                public:
+                if (value < 0xc0) return 0;
+                if (value < 0xe0) return 1;
+                if (value < 0xf0) return 2;
+                if (value < 0xf8) return 3;
+                if (value < 0xfc) return 4;
+                return 5;
+            }
 
-                    NGramStreamDataset(IEngineRowAllocator* _resultAllocator, size_t _inputStringLength, const char* _inputString, size_t _ngramLength)
-                        : resultAllocator(_resultAllocator), inputString(_inputString), ngramLength(_ngramLength)
-                    {
-                        inputStringSize = rtlUtf8Size(_inputStringLength, inputString);
-                        isStopped = (_inputStringLength < ngramLength);
-                        currentPos = 0;
-                    }
+            inline size_t bytesForChar(byte ch)
+            {
+                size_t trailingByteCount = countTrailingBytes(ch);
 
-                    RTLIMPLEMENT_IINTERFACE
+                if (trailingByteCount > 4)
+                    return 0;
 
-                    static inline size_t countTrailingBytes(byte value)
-                    {
-                        if (value < 0xc0) return 0;
-                        if (value < 0xe0) return 1;
-                        if (value < 0xf0) return 2;
-                        if (value < 0xf8) return 3;
-                        if (value < 0xfc) return 4;
-                        return 5;
-                    }
+                return trailingByteCount + 1;
+            }
 
-                    static inline size_t bytesForChar(byte ch)
-                    {
-                        size_t trailingByteCount = countTrailingBytes(ch);
+            size_t byteCountForChar(const char* inputString, size_t inputStringSize, size_t currentPos)
+            {
+                size_t byteCount = bytesForChar(inputString[currentPos]);
 
-                        if (trailingByteCount > 4)
-                            return 0;
+                if (byteCount == 0 || (currentPos + byteCount > inputStringSize))
+                {
+                    // Error condition
+                    rtlFail(-1, "Invalid UTF-8 encoding");
+                }
 
-                        return trailingByteCount + 1;
-                    }
-
-                    size_t numBytesForNumChars(size_t charsNeeded)
-                    {
-                        size_t byteCount = 0;
-
-                        for (size_t x = 0; x < charsNeeded; x++)
-                        {
-                            size_t byteCountToSkip = bytesForChar(inputString[currentPos + byteCount]);
-
-                            if (byteCountToSkip == 0 || currentPos + byteCount + byteCountToSkip > inputStringSize)
-                            {
-                                // Error condition
-                                return 0;
-                            }
-
-                            byteCount += byteCountToSkip;
-                        }
-
-                        return byteCount;
-                    }
-
-                    virtual const void* nextRow() override
-                    {
-                        if (isStopped)
-                        {
-                            return nullptr;
-                        }
-
-                        while (currentPos < inputStringSize)
-                        {
-                            size_t numBytesToCopy = numBytesForNumChars(ngramLength);
-
-                            if (numBytesToCopy > 0)
-                            {
-                                const bool didInsert = ngramSet.insert(std::string(inputString + currentPos, numBytesToCopy)).second;
-
-                                if (didInsert)
-                                {
-                                    RtlDynamicRowBuilder    rowBuilder(resultAllocator);
-                                    uint32_t                len = numBytesToCopy;
-                                    uint32_t                totalRowSize = sizeof(len) + len;
-                                    byte*                   row = rowBuilder.ensureCapacity(totalRowSize, NULL);
-
-                                    memcpy(row, &len, sizeof(len));
-                                    memcpy(row + sizeof(len), inputString + currentPos, len);
-
-                                    currentPos += numBytesForNumChars(1);
-
-                                    return rowBuilder.finalizeRowClear(totalRowSize);
-                                }
-                                else
-                                {
-                                    // We didn't insert, but we need to advance the current position
-                                    currentPos += numBytesForNumChars(1);
-                                }
-                            }
-                            else
-                            {
-                                isStopped = true;
-                                return nullptr;
-                            }
-                        }
-
-                        isStopped = true;
-                        return nullptr;
-                    }
-
-                    virtual void stop() override
-                    {
-                        isStopped = true;
-                    }
-
-                private:
-
-                    Linked<IEngineRowAllocator> resultAllocator;
-                    bool                        isStopped;
-                    std::string                 outString;
-                    const char *                inputString;
-                    size_t                      inputStringSize;
-                    size_t                      ngramLength;
-                    size_t                      currentPos;
-                    std::set<std::string>       ngramSet;
-            };
+                return byteCount;
+            }
 
             #body
 
-            return new NGramStreamDataset(_resultAllocator, lenS, s, ngram_length);
-        ENDEMBED;
+            std::vector<HashType> minHashes;
 
-        //--------------------------------------------------------------------
+            __lenResult = 0;
+            __result = nullptr;
+            __isAllResult = false;
 
-        EXPORT STREAMED DATASET(HashFunctionLayout) CreateHashFunctions(UNSIGNED8 set_count, UNSIGNED8 vocab_size) := FUNCTION
-            STREAMED DATASET(HashFunctionLayout) _CreateHashFunctions(UNSIGNED8 set_count,
-                                                                      UNSIGNED8 vocab_size,
-                                                                      UNSIGNED1 worker_count = Std.System.Thorlib.Nodes(),
-                                                                      UNSIGNED1 worker_id = Std.System.Thorlib.Node()) := EMBED(C++ : activity)
-                #include <algorithm>
-                #include <chrono>
-                #include <random>
-                #include <vector>
+            if (lenS >= ngram_length && ngram_length > 0 && lenHashes > 0)
+            {
+                const HashType* hashSet = static_cast<const HashType*>(hashes);
+                unsigned long numHashes = lenHashes / sizeof(HashType);
+                size_t sSize = rtlUtf8Size(lenS, s);
+                size_t currentPos = 0;
+                std::vector<std::pair<size_t, size_t>> byteSizes;
+                std::vector<HashType> ngramHashes;
+                std::string ngramBuffer;
 
-                class RandomNumStreamDataset : public RtlCInterface, implements IRowStream
+                // Precompute bytes used for each character
+                byteSizes.reserve(lenS);
+                for (size_t x = 0; x < lenS; x++)
                 {
-                    public:
+                    size_t numBytesToCopy = byteCountForChar(s, sSize, currentPos);
+                    byteSizes.push_back(std::make_pair(currentPos, numBytesToCopy));
+                    currentPos += numBytesToCopy;
+                }
 
-                        RandomNumStreamDataset(IEngineRowAllocator* _resultAllocator, unsigned __int64 _set_count, unsigned __int64 _vocab_size, unsigned char _worker_count, unsigned char _worker_id)
-                            : resultAllocator(_resultAllocator), set_count(_set_count), vocab_size(_vocab_size), worker_count(_worker_count), worker_id(_worker_id)
-                        {
-                            isStopped = (vocab_size == 0);
-                            idx = 0;
-                            setCounter = 0;
+                for (size_t x = 0; x < (lenS - ngram_length + 1); x++)
+                {
+                    // Extract ngram bytes
+                    size_t numBytesToCopy = 0;
+                    currentPos = byteSizes[x].first;
+                    for (size_t y = 0; y < ngram_length; y++)
+                        numBytesToCopy += byteSizes[x + y].second;
+                    ngramBuffer.assign(s + currentPos, numBytesToCopy);
+                    ngramHashes.push_back(rtlHash64Data(ngramBuffer.size(), ngramBuffer.data(), HASH64_INIT));
+                }
 
-                            for (unsigned __int64 x = 0; x < vocab_size; x++)
-                                pos.push_back(x + 1);
+                // Find the min hash for each hash function
+                for (size_t x = 0; x < numHashes; x++)
+                {
+                    HashType minHash = UINT64_MAX;
+                    for (auto& ngramHash : ngramHashes)
+                        minHash = std::min(minHash, ngramHash ^ hashSet[x]);
+                    minHashes.push_back(minHash);
+                }
 
-                            rng.seed(std::chrono::system_clock::now().time_since_epoch().count());
-                        }
+                // Sort the hash values
+                std::sort(minHashes.begin(), minHashes.end());
 
-                        RTLIMPLEMENT_IINTERFACE
+                // Compute result buffer size and allocate
+                __lenResult = sizeof(HashType) * minHashes.size();
+                __result = rtlMalloc(__lenResult);
 
-                        void Randomize()
-                        {
-                            std::shuffle(pos.begin(), pos.end(), rng);
-                        }
-
-                        virtual const void* nextRow()
-                        {
-                            if (isStopped)
-                            {
-                                return nullptr;
-                            }
-
-                            while (setCounter < set_count)
-                            {
-                                if ((setCounter % worker_count) == worker_id)
-                                {
-                                    if (idx == 0)
-                                    {
-                                        Randomize();
-                                    }
-
-                                    if (idx < vocab_size)
-                                    {
-                                        RtlDynamicRowBuilder    rowBuilder(resultAllocator);
-                                        uint32_t                totalRowSize = sizeof(unsigned __int64) * 3;
-                                        byte*                   row = rowBuilder.ensureCapacity(totalRowSize, NULL);
-                                        unsigned __int64*       nums = (unsigned __int64*)row;
-
-                                        nums[0] = setCounter + 1;   // hash_set
-                                        nums[1] = idx + 1;          // pos
-                                        nums[2] = pos[idx];         // hash_value
-                                        ++idx;
-
-                                        return rowBuilder.finalizeRowClear(totalRowSize);
-                                    }
-
-                                    ++setCounter;
-                                    idx = 0;
-                                }
-                                else
-                                {
-                                    ++setCounter;
-                                }
-                            }
-
-                            isStopped = true;
-                            return nullptr;
-                        }
-
-                        virtual void stop()
-                        {
-                            isStopped = true;
-                        }
-
-                    protected:
-
-                        Linked<IEngineRowAllocator>     resultAllocator;
-                        std::default_random_engine      rng;
-
-                    private:
-
-                        bool                            isStopped;
-                        unsigned __int64                set_count;
-                        unsigned __int64                vocab_size;
-                        unsigned __int64                idx;
-                        unsigned __int64                setCounter;
-                        unsigned __int64                worker_count;
-                        unsigned __int64                worker_id;
-                        std::vector<unsigned __int64>   pos;
-                };
-
-                #body
-
-                return new RandomNumStreamDataset(_resultAllocator, set_count, vocab_size, worker_count, worker_id);
-            ENDEMBED;
-
-            RETURN _CreateHashFunctions(set_count, vocab_size);
-        END;
-
-        //--------------------------------------------------------------------
-
-        EXPORT CreateDenseSig(DATASET(EntityLayout) entities, DATASET(VocabLayout) vocabulary, DATASET(HashFunctionLayout) hashes) := FUNCTION
-            ngramLength := LENGTH(vocabulary[1].ngram);
-
-            // Convert entity names into ngrams, keeping the ID associated with each
-            entityNGrams := NORMALIZE
-                (
-                    entities,
-                    MakeNGrams(LEFT.s, ngramLength),
-                    TRANSFORM
-                        (
-                            {
-                                EntityID_t  id,
-                                UTF8        ngram
-                            },
-                            SELF.id := LEFT.id,
-                            SELF.ngram := RIGHT.ngram
-                        )
-                );
-
-            oneHotMatches0 := JOIN
-                (
-                    entityNGrams,
-                    vocabulary,
-                    LEFT.ngram = RIGHT.ngram,
-                    TRANSFORM
-                        (
-                            {
-                                EntityID_t  id,
-                                UNSIGNED8   pos
-                            },
-                            SELF.id := LEFT.id,
-                            SELF.pos := RIGHT.pos
-                        ),
-                    SMART, LEFT OUTER, SKEW(0.5)
-                );
-            oneHotMatches := WHEN(oneHotMatches0, OUTPUT(oneHotMatches0, NAMED('oneHotMatches0')));
-
-            // Construct the hash digits we need for minhash computation
-            hashDigits0 := JOIN
-                (
-                    oneHotMatches,
-                    hashes,
-                    LEFT.pos = RIGHT.hash_value,
-                    TRANSFORM
-                        (
-                            {
-                                EntityID_t  id,
-                                RECORDOF(RIGHT)
-                            },
-                            SELF.id := LEFT.id,
-                            SELF := RIGHT
-                        ),
-                    SMART, LEFT OUTER, SKEW(0.5)
-                );
-            hashDigits := WHEN(hashDigits0, OUTPUT(SORT(hashDigits0, id, hash_set, pos), NAMED('hashDigits0')));
-
-            // Filter out all but the minhash digits; this also significantly reduces the
-            // size of the interim dataset we're working with
-            minPosHashDigits0 := TABLE
-                (
-                    hashDigits,
-                    {
-                        id,
-                        hash_set,
-                        UNSIGNED8 pos := MIN(GROUP, pos)
-                    },
-                    id, hash_set,
-                    MERGE
-                );
-            minPosHashDigits := WHEN(minPosHashDigits0, OUTPUT(minPosHashDigits0, NAMED('minPosHashDigits0')));
-
-            distMinPosHashDigits := DISTRIBUTE(minPosHashDigits, HASH64(id));
-
-            // Convert the positions to a set; they become our dense signature
-            hashDigitMin := PROJECT
-                (
-                    distMinPosHashDigits,
-                    TRANSFORM
-                        (
-                            {
-                                DenseSigLayout,
-                                LEFT.hash_set
-                            },
-                            SELF.id := LEFT.id,
-                            SELF.sig := [LEFT.pos],
-                            SELF := LEFT
-                        )
-                );
-
-            denseSigs0 := ROLLUP
-                (
-                    SORT(hashDigitMin, id, hash_set, LOCAL),
-                    TRANSFORM
-                        (
-                            RECORDOF(LEFT),
-                            SELF.sig := LEFT.sig + RIGHT.sig,
-                            SELF := LEFT
-                        ),
-                    id,
-                    LOCAL
-                );
-            
-            denseSigs := PROJECT
-                (
-                    denseSigs0,
-                    TRANSFORM
-                        (
-                            DenseSigLayout,
-                            SELF := LEFT
-                        )
-                );
-
-            RETURN denseSigs;
-        END;
+                // Populate the result buffer
+                HashType* outPtr = static_cast<HashType*>(__result);
+                for (size_t x = 0; x < minHashes.size(); x++)
+                {
+                    outPtr[x] = minHashes[x];
+                }
+            }
+        ENDEMBED;
 
         //--------------------------------------------------------------------
 
@@ -495,11 +246,11 @@ EXPORT LSH := MODULE
                     COUNT(LEFT.sig) / bandSize,
                     TRANSFORM
                         (
-                            HashBandLayout,
+                            LookupLayout,
                             startPos := (COUNTER - 1) * bandSize + 1;
                             endPos := startPos + bandSize - 1;
-                            SELF.id := LEFT.id,
-                            SELF.bandHash := HASH64(LEFT.sig[startPos .. endPos])
+                            SELF.lookup_hash := HASH64(LEFT.sig[startPos .. endPos]),
+                            SELF := LEFT
                         )
                 );
 
@@ -508,38 +259,59 @@ EXPORT LSH := MODULE
 
         //--------------------------------------------------------------------
 
-        EXPORT REAL8 JaccardSimilarity(SET OF UNSIGNED8 set1, SET OF UNSIGNED8 set2) := EMBED(C++)
+        // Assumption: set1 and set2 are sorted ascending
+        EXPORT REAL8 JaccardSimilarity(SET OF Hash_t set1, SET OF Hash_t set2) := EMBED(C++)
             #option pure;
 
-            #include <algorithm>
-            #include <vector>
+            typedef unsigned __int64 HashType;
 
             #body
 
-            std::vector<unsigned __int64> firstSet;
-            std::vector<unsigned __int64> secondSet;
-            std::vector<unsigned __int64> intersectionSet;
-            std::vector<unsigned __int64> unionSet;
+            const HashType * numSet1 = static_cast<const HashType *>(set1);
+            unsigned long numElements1 = lenSet1 / sizeof(HashType);
+            unsigned long pos1 = 0;
 
-            const unsigned __int64 * numSet1 = static_cast<const unsigned __int64 *>(set1);
-            const unsigned __int64 * numSet2 = static_cast<const unsigned __int64 *>(set2);
+            const HashType * numSet2 = static_cast<const HashType *>(set2);
+            unsigned long numElements2 = lenSet2 / sizeof(HashType);
+            unsigned long pos2 = 0;
 
-            unsigned long numElements1 = lenSet1 / sizeof(unsigned __int64);
-            firstSet.reserve(numElements1);
-            for (unsigned long x = 0; x < numElements1; x++)
-                firstSet.push_back(numSet1[x]);
-            sort(firstSet.begin(), firstSet.end());
+            unsigned long intersectionCount = 0;
+            unsigned long unionCount = 0;
 
-            unsigned long numElements2 = lenSet2 / sizeof(unsigned __int64);
-            secondSet.reserve(numElements2);
-            for (unsigned long x = 0; x < numElements2; x++)
-                secondSet.push_back(numSet2[x]);
-            sort(secondSet.begin(), secondSet.end());
+            while (pos1 < numElements1 || pos2 < numElements2)
+            {
+                if (pos1 < numElements1 && pos2 < numElements2)
+                {
+                    ++unionCount;
 
-            std::set_intersection(firstSet.begin(), firstSet.end(), secondSet.begin(), secondSet.end(), std::back_inserter(intersectionSet));
-            std::set_union(firstSet.begin(), firstSet.end(), secondSet.begin(), secondSet.end(), std::back_inserter(unionSet));
+                    if (numSet1[pos1] == numSet2[pos2])
+                    {
+                        ++intersectionCount;
+                        ++pos1;
+                        ++pos2;
+                    }
+                    else if (numSet1[pos1] < numSet2[pos2])
+                    {
+                        ++pos1;
+                    }
+                    else
+                    {
+                        ++pos2;
+                    }
+                }
+                else if (pos1 < numElements1)
+                {
+                    unionCount += (numElements1 - pos1);
+                    break;
+                }
+                else
+                {
+                    unionCount += (numElements2 - pos2);
+                    break;
+                }
+            }
 
-            return static_cast<double>(intersectionSet.size()) / static_cast<double>(unionSet.size());
+            return static_cast<double>(intersectionCount) / static_cast<double>(unionCount);
         ENDEMBED;
 
     END; // Module Util
@@ -556,45 +328,26 @@ EXPORT LSH := MODULE
                            UNSIGNED2 hashBandSize,
                            UNSIGNED1 ngramLength = DEFAULT_NGRAM_LENGTH) := FUNCTION
 
-            // Distribute the corpus for efficiency
-            distEntities := DISTRIBUTE(entities, SKEW(0.05));
+            // Hashes we will use for MinHashing
+            hashSet := UtilMod.CreateHashFunctions(denseSignatureSize);
 
-            // Create vocabulary
-            rawNGrams := NORMALIZE
+            // Distribute the corpus for efficiency
+            distEntities := DISTRIBUTE(entities(LENGTH(s) >= ngramLength), SKEW(0.02));
+
+            entitySigs := PROJECT
                 (
                     distEntities,
-                    UtilMod.MakeNGrams(LEFT.s, ngramLength),
                     TRANSFORM
                         (
-                            NGramLayout,
-                            SELF := RIGHT
+                            DenseSigLayout,
+                            SELF.id := LEFT.id,
+                            SELF.sig := UtilMod.MakeDenseSignature(LEFT.s, ngramLength, hashSet)
                         )
                 );
+            createSignaturesFileAction := BUILD(FSMod.signaturesDS, entitySigs, OVERWRITE);
 
-            vocab0 := TABLE(rawNGrams, {ngram}, ngram, MERGE);
-            vocab := PROJECT
-                (
-                    vocab0,
-                    TRANSFORM
-                        (
-                            VocabLayout,
-                            SELF.pos := COUNTER,
-                            SELF := LEFT
-                        )
-                );
-            createVocabFileAction := OUTPUT(vocab, {vocab}, FSMod.VOCABULARY_FILENAME, COMPRESSED, OVERWRITE);
-
-            // Create hash functions
-            hashFunctions := UtilMod.CreateHashFunctions(denseSignatureSize, COUNT(vocab));
-            createHashFunctionsFileAction := OUTPUT(hashFunctions, {hashFunctions}, FSMod.HASH_FUNCTIONS_FILENAME, COMPRESSED, OVERWRITE);
-
-            // Create dense signatures
-            corpusSigs := UtilMod.CreateDenseSig(distEntities, vocab, hashFunctions);
-            createSignaturesFileAction := BUILD(corpusSigs, {id}, {corpusSigs}, FSMod.SIGNATURES_FILENAME, OVERWRITE);
-
-            // Break up signatures into hash bands
-            corpusHashBands := UtilMod.CreateHashBands(corpusSigs, hashBandSize);
-            createHashBandsFileAction := OUTPUT(corpusHashBands, {corpusHashBands}, FSMod.HASH_BANDS_FILENAME, COMPRESSED, OVERWRITE);
+            lookupInfo := UtilMod.CreateHashBands(entitySigs, hashBandSize);
+            createLookupFileAction := OUTPUT(lookupInfo, {lookupInfo}, FSMod.LOOKUP_FILENAME, COMPRESSED, OVERWRITE);
 
             // Create a single-record config file that records some of these parameters
             config := DATASET
@@ -602,8 +355,8 @@ EXPORT LSH := MODULE
                     [
                         {
                             ngramLength,
-                            denseSignatureSize,
-                            hashBandSize
+                            hashBandSize,
+                            hashSet
                         }
                     ],
                     ConfigLayout
@@ -612,10 +365,8 @@ EXPORT LSH := MODULE
 
             buildAllAction := PARALLEL
                 (
-                    createVocabFileAction,
-                    createHashFunctionsFileAction,
                     createSignaturesFileAction,
-                    createHashBandsFileAction,
+                    createLookupFileAction,
                     createConfigFileAction
                 );
 
@@ -636,16 +387,23 @@ EXPORT LSH := MODULE
         SHARED UtilMod := Util(fileScope);
         SHARED FSMod := UtilMod.FS;
 
-        EXPORT SearchMany(DATASET(EntityLayout) searchEntities, UNSIGNED2 minHashBandMatchCount) := FUNCTION
+        EXPORT SearchMany(DATASET(EntityLayout) searchEntities, UNSIGNED2 minHashBandMatchCount, REAL8 minSimilarity) := FUNCTION
             // Files we need
-            vocab := FSMod.vocabDS;
-            hashFunctions := FSMod.hashFunctionsDS;
-            corpusSigs := FSMod.corpusSigsDS;
-            corpusHashBands := FSMod.corpusHashBandsDS;
+            lookupDS := FSMod.lookupDS;
+            corpusSignaturesDS := FSMod.signaturesDS;
             config := FSMod.configDS;
 
             // Create dense signatures for the search entities
-            searchSigs := UtilMod.CreateDenseSig(searchEntities, vocab, hashFunctions);
+            searchSigs := PROJECT
+                (
+                    searchEntities,
+                    TRANSFORM
+                        (
+                            DenseSigLayout,
+                            SELF.id := LEFT.id,
+                            SELF.sig := UtilMod.MakeDenseSignature(LEFT.s, config[1].ngram_length, config[1].hashes)
+                        )
+                );
 
             // Break up signatures into hash bands
             searchHashBands := UtilMod.CreateHashBands(searchSigs, config[1].hash_band_size);
@@ -653,14 +411,14 @@ EXPORT LSH := MODULE
             // Find initial matches
             matches := JOIN
                 (
-                    corpusHashBands,
+                    lookupDS,
                     searchHashBands,
-                    LEFT.bandHash = RIGHT.bandHash,
+                    LEFT.lookup_hash = RIGHT.lookup_hash,
                     TRANSFORM
                         (
                             {
-                                EntityID_t  search_id,
-                                EntityID_t  entity_id
+                                EntityID_t      search_id,
+                                EntityID_t      entity_id
                             },
                             SELF.entity_id := LEFT.id,
                             SELF.search_id := RIGHT.id
@@ -682,17 +440,35 @@ EXPORT LSH := MODULE
                 );
             matchSummary := matchSummary0(match_cnt >= minHashBandMatchCount);
 
-            // Append the dense signatures of both the search terms and the filtered candidates
-            matchesWithCorpusSigs := JOIN
+            // Append search signatures
+            withSearchSig := JOIN
                 (
                     matchSummary,
-                    corpusSigs,
+                    searchSigs,
+                    LEFT.search_id = RIGHT.id,
+                    TRANSFORM
+                        (
+                            {
+                                RECORDOF(LEFT),
+                                SET OF Hash_t search_sig
+                            },
+                            SELF.search_sig := RIGHT.sig,
+                            SELF := LEFT
+                        ),
+                    LOOKUP
+                ) : ONWARNING(4531, IGNORE);
+
+            // Append corpus signatures
+            withCorpusSig := JOIN
+                (
+                    withSearchSig,
+                    corpusSignaturesDS,
                     LEFT.entity_id = RIGHT.id,
                     TRANSFORM
                         (
                             {
                                 RECORDOF(LEFT),
-                                SET OF UNSIGNED8 entity_sig
+                                SET OF Hash_t entity_sig
                             },
                             SELF.entity_sig := RIGHT.sig,
                             SELF := LEFT
@@ -700,31 +476,15 @@ EXPORT LSH := MODULE
                     KEEP(1)
                 );
 
-            matchesWithSearchSigs := JOIN
-                (
-                    matchesWithCorpusSigs,
-                    searchSigs,
-                    LEFT.search_id = RIGHT.id,
-                    TRANSFORM
-                        (
-                            {
-                                RECORDOF(LEFT),
-                                SET OF UNSIGNED8 search_sig
-                            },
-                            SELF.search_sig := RIGHT.sig,
-                            SELF := LEFT
-                        ),
-                    KEEP(1)
-                ) : ONWARNING(4531, IGNORE);
-
             // Compute the Jaccard similarities
             similarities := PROJECT
                 (
-                    matchesWithSearchSigs,
+                    withCorpusSig,
                     TRANSFORM
                         (
                             SearchResultLayout,
-                            SELF.similarity := UtilMod.JaccardSimilarity(LEFT.entity_sig, LEFT.search_sig),
+                            sim := UtilMod.JaccardSimilarity(LEFT.entity_sig, LEFT.search_sig);
+                            SELF.similarity := IF(sim >= minSimilarity, sim, SKIP),
                             SELF := LEFT
                         )
                 );
@@ -734,8 +494,8 @@ EXPORT LSH := MODULE
 
         //--------------------------------------------------------------------
 
-        EXPORT SearchOne(UTF8 searchString, UNSIGNED2 minHashBandMatchCount) := FUNCTION
-            RETURN SearchMany(DATASET([{0, searchString}], EntityLayout), minHashBandMatchCount);
+        EXPORT SearchOne(UTF8 searchString, UNSIGNED2 minHashBandMatchCount, REAL8 minSimilarity) := FUNCTION
+            RETURN SearchMany(DATASET([{0, searchString}], EntityLayout), minHashBandMatchCount, minSimilarity);
         END;
 
     END; // Module Search
@@ -745,7 +505,7 @@ END; // Module LHS
 /******* EXAMPLE CODE ***********************************************************************
 
 NGRAM_SIZE := 2;
-SIG_SIZE := 12;
+SIG_SIZE := 60;
 BAND_SIZE := 2; // Must equally divide into SIG_SIZE
 MIN_BAND_MATCH_COUNT := 1; // Must be between 1 and (SIG_SIZE / BAND_SIZE), inclusive
 
@@ -803,8 +563,8 @@ SEQUENTIAL
         IF(DO_SEARCH,
             PARALLEL
                 (
-                    OUTPUT(searchManyResults, NAMED('search_many_results')),
-                    OUTPUT(searchOneResults, NAMED('search_one_results'))
+                    OUTPUT(TOPN(searchManyResults, 100, -similarity), NAMED('search_many_results')),
+                    OUTPUT(TOPN(searchOneResults, 100, -similarity), NAMED('search_one_results'))
                 ))
     );
 
