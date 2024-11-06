@@ -506,6 +506,7 @@ NGRAM_SIZE := 2;
 SIG_SIZE := 60;
 BAND_SIZE := 2; // Must equally divide into SIG_SIZE
 MIN_BAND_MATCH_COUNT := 1; // Must be between 1 and (SIG_SIZE / BAND_SIZE), inclusive
+MIN_SIMILARITY := 0.10; // Intentionally low for this test
 
 //*** MIN_BAND_MATCH_COUNT is only 1 because our test vocabulary is very small
 
@@ -550,8 +551,8 @@ searchEntities0 := DATASET
     );
 searchEntities := NOFOLD(searchEntities0);
 
-searchManyResults := LSH.Search(FILE_SCOPE).SearchMany(searchEntities, MIN_BAND_MATCH_COUNT);
-searchOneResults := LSH.Search(FILE_SCOPE).SearchOne(NOFOLD(u8'FUBARSKY'), MIN_BAND_MATCH_COUNT);
+searchManyResults := LSH.Search(FILE_SCOPE).SearchMany(searchEntities, MIN_BAND_MATCH_COUNT, MIN_SIMILARITY);
+searchOneResults := LSH.Search(FILE_SCOPE).SearchOne(NOFOLD(u8'FUBARSKY'), MIN_BAND_MATCH_COUNT, MIN_SIMILARITY);
 
 //--------------------------------
 
