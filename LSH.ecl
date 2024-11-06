@@ -190,7 +190,6 @@ EXPORT LSH := MODULE
                 size_t currentPos = 0;
                 std::vector<std::pair<size_t, size_t>> byteSizes;
                 std::vector<HashType> ngramHashes;
-                std::string ngramBuffer;
 
                 // Precompute bytes used for each character
                 byteSizes.reserve(lenS);
@@ -208,8 +207,7 @@ EXPORT LSH := MODULE
                     currentPos = byteSizes[x].first;
                     for (size_t y = 0; y < ngram_length; y++)
                         numBytesToCopy += byteSizes[x + y].second;
-                    ngramBuffer.assign(s + currentPos, numBytesToCopy);
-                    ngramHashes.push_back(rtlHash64Data(ngramBuffer.size(), ngramBuffer.data(), HASH64_INIT));
+                    ngramHashes.push_back(rtlHash64Data(numBytesToCopy, s + currentPos, HASH64_INIT));
                 }
 
                 // Find the min hash for each hash function
