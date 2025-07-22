@@ -58,12 +58,17 @@ EXPORT UUIDv7 := MODULE
         #include <cstdio>
         #include <random>
 
+        // random bytes
+        static std::random_device rd;
+        static std::mt19937_64 gen(rd());
+        static std::uniform_int_distribution<uint64_t> dis;
+
         #body
 
-        // random bytes
         std::array<uint8_t, 16> value;
-        for (auto& elem : value)
-            elem = std::rand() % 256;
+        uint64_t* chunks = reinterpret_cast<uint64_t*>(value.data());
+        chunks[0] = dis(gen);
+        chunks[1] = dis(gen);
 
         // current timestamp in ms
         auto now = std::chrono::system_clock::now();
