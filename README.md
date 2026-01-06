@@ -38,6 +38,7 @@ own ECL bundle.  Please see
 * [Geo.ecl](Geo.ecl)
 * [GroupedNumericStats.ecl](GroupedNumericStats.ecl)
 * [IsUTF8.ecl](IsUTF8.ecl)
+* [HMAC_SHA256_.ecl](HMAC_SHA256.ecl)
 * [LSH.ecl](LSH.ecl)
 * [NotifyHelper.ecl](NotifyHelper.ecl)
 * [PlatformVersionCheck.ecl](PlatformVersionCheck.ecl)
