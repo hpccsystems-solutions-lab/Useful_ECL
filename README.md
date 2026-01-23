@@ -37,6 +37,7 @@ own ECL bundle.  Please see
 * [FuzzyNGramSearch.ecl](FuzzyNGramSearch.ecl)
 * [Geo.ecl](Geo.ecl)
 * [GroupedNumericStats.ecl](GroupedNumericStats.ecl)
+* [IsDaylightSavingsInEffect.ecl](IsDaylightSavingsInEffect.ecl)
 * [IsUTF8.ecl](IsUTF8.ecl)
 * [HMAC_SHA256_.ecl](HMAC_SHA256.ecl)
 * [LSH.ecl](LSH.ecl)
