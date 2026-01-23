@@ -26,6 +26,8 @@ IMPORT Std;
  *                  OPTIONAL, defaults to the current date.
  *
  * @return  TRUE if daylight saving time was in effect on that date, FALSE otherwise.
+ *
+ * Origin:  https://github.com/hpccsystems-solutions-lab/Useful_ECL
  */
 EXPORT BOOLEAN IsDaylightSavingsInEffect(Std.Date.Date_t date = Std.Date.Today()) := FUNCTION
     // Helper functions
