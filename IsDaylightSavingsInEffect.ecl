@@ -40,22 +40,22 @@ EXPORT BOOLEAN IsDaylightSavingsInEffect(Std.Date.Date_t date = Std.Date.Today()
         RETURN Std.Date.AdjustDate(d, day_delta := delta);
     END;
 
-    year := Std.Date.Year(date);
+    myYear := Std.Date.Year(date);
 
     RETURN MAP
         (
-            year >= 2007 => (date >= SundayDateAfter(Std.Date.DateFromParts(year, 3, 1), 2) AND date < SundayDateAfter(Std.Date.DateFromParts(year, 11, 1))),
-            year >= 1987 => (date >= SundayDateAfter(Std.Date.DateFromParts(year, 4, 1)) AND date < SundayDateBefore(Std.Date.DateFromParts(year, 10, 31))),
-            year >= 1976 => (date >= SundayDateBefore(Std.Date.DateFromParts(year, 4, 30)) AND date < SundayDateBefore(Std.Date.DateFromParts(year, 10, 31))),
-            year =  1975 => (date >= SundayDateBefore(Std.Date.DateFromParts(year, 2, 28)) AND date < SundayDateBefore(Std.Date.DateFromParts(year, 10, 31))),
-            year =  1974 => (date >= SundayDateAfter(Std.Date.DateFromParts(year, 1, 1)) AND date < SundayDateBefore(Std.Date.DateFromParts(year, 10, 31))),
-            year >= 1967 => (date >= SundayDateBefore(Std.Date.DateFromParts(year, 4, 30)) AND date < SundayDateBefore(Std.Date.DateFromParts(year, 10, 31))),
-            year >= 1946 => FALSE, // DST not federally mandated (varied by locality)
-            year =  1945 => (date < SundayDateBefore(Std.Date.DateFromParts(year, 9, 30))),
-            year >= 1943 => TRUE, // "war time" (continuous DST)
-            year =  1942 => (date >= SundayDateAfter(Std.Date.DateFromParts(year, 2, 1), 2)),
-            year >= 1920 => FALSE, // DST not federally mandated (varied by locality)
-            year >= 1918 => (date >= SundayDateBefore(Std.Date.DateFromParts(year, 3, 31)) AND date < SundayDateBefore(Std.Date.DateFromParts(year, 10, 31))),
+            myYear >= 2007 => (date >= SundayDateAfter(Std.Date.DateFromParts(myYear, 3, 1), 2) AND date < SundayDateAfter(Std.Date.DateFromParts(myYear, 11, 1))),
+            myYear >= 1987 => (date >= SundayDateAfter(Std.Date.DateFromParts(myYear, 4, 1)) AND date < SundayDateBefore(Std.Date.DateFromParts(myYear, 10, 31))),
+            myYear >= 1976 => (date >= SundayDateBefore(Std.Date.DateFromParts(myYear, 4, 30)) AND date < SundayDateBefore(Std.Date.DateFromParts(myYear, 10, 31))),
+            myYear =  1975 => (date >= SundayDateBefore(Std.Date.DateFromParts(myYear, 2, 28)) AND date < SundayDateBefore(Std.Date.DateFromParts(myYear, 10, 31))),
+            myYear =  1974 => (date >= SundayDateAfter(Std.Date.DateFromParts(myYear, 1, 1)) AND date < SundayDateBefore(Std.Date.DateFromParts(myYear, 10, 31))),
+            myYear >= 1967 => (date >= SundayDateBefore(Std.Date.DateFromParts(myYear, 4, 30)) AND date < SundayDateBefore(Std.Date.DateFromParts(myYear, 10, 31))),
+            myYear >= 1946 => FALSE, // DST not federally mandated (varied by locality)
+            myYear =  1945 => (date < SundayDateBefore(Std.Date.DateFromParts(myYear, 9, 30))),
+            myYear >= 1943 => TRUE, // "war time" (continuous DST)
+            myYear =  1942 => (date >= SundayDateAfter(Std.Date.DateFromParts(myYear, 2, 1), 2)),
+            myYear >= 1920 => FALSE, // DST not federally mandated (varied by locality)
+            myYear >= 1918 => (date >= SundayDateBefore(Std.Date.DateFromParts(myYear, 3, 31)) AND date < SundayDateBefore(Std.Date.DateFromParts(myYear, 10, 31))),
             FALSE
         );
 END;
